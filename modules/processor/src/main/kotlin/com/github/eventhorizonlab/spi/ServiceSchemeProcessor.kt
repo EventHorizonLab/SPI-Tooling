@@ -73,7 +73,7 @@ class ServiceSchemeProcessor : AbstractProcessor() {
             .forEach { contract ->
                 processingEnv.messager.printMessage(
                     Diagnostic.Kind.ERROR,
-                    "No @ServiceProvider found for contract $contract"
+                    missingServiceProviderErrorMessage(contract)
                 )
             }
     }
@@ -118,3 +118,5 @@ class ServiceSchemeProcessor : AbstractProcessor() {
         }
     }
 }
+
+internal fun missingServiceProviderErrorMessage(contract: String): String = "No @ServiceProvider found for contract $contract"
