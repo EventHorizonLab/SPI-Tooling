@@ -2,44 +2,62 @@ plugins {
     id 'base'
 }
 
-subprojects {
+allprojects {
+    group = findProperty('group')
+    def baseVer = findProperty('baseVersion') as String
+    if (!baseVer.endsWith('-SNAPSHOT')) {
+        baseVer += '-SNAPSHOT'
+    }
+    version = baseVer
     repositories {
         mavenCentral()
     }
+}
 
-    if (it.plugins.hasPlugin('java-library') || it.plugins.hasPlugin('org.jetbrains.kotlin.jvm')) {
-        it.apply plugin: 'maven-publish'
+subprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
 
-        it.publishing {
-            publications {
-                create('maven', MavenPublication) {
-                    from components.java
-                    artifactId = "${rootProject.name}-${project.name}"
-                    groupId = rootProject.group as String
-                    version = rootProject.version as String
+    def projName = project.name
+
+    publishing {
+        publications {
+            create('maven', MavenPublication) {
+                from components.java
+                artifactId = "${rootProject.name}-${projName}"
+                groupId = rootProject.group as String
+                version = rootProject.version as String
+            }
+        }
+    }
+
+    tasks.withType(PublishToMavenLocal).configureEach { t ->
+        doLast {
+            def pub = t.publication
+            if (pub instanceof MavenPublication) {
+                def coords = "${pub.groupId}:${pub.artifactId}:${pub.version}"
+                println ""
+                println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                println "📦 Published to Maven Local"
+                println "   Coordinates : $coords"
+                println "   Repository  : mavenLocal (~/.m2/repository)"
+                println "   Artifacts   :"
+                pub.artifacts.each { art ->
+                    println "      • ${art.file.name}  →  ${art.file}"
                 }
+                println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                println ""
+            } else {
+                println "⚠️  Task ${t.path} did not publish a MavenPublication"
             }
         }
     }
 }
 
-allprojects {
-    group = findProperty('group')
-    version = "${findProperty('baseVersion')}-SNAPSHOT"
-}
-
 tasks.register('copyJar', Copy) {
     description = 'Collects all subproject jars into the root build/ directory'
     group = 'build'
-
-    // Make sure subproject jars are built first
     dependsOn subprojects.collect { it.tasks.matching { it.name == 'jar' } }
-
-    // Copy from each subproject's jar output
-    from subprojects.collect { proj ->
-        proj.tasks.named('jar').flatMap { it.archiveFile }
-    }
-
+    from subprojects.collect { proj -> proj.tasks.named('jar').flatMap { it.archiveFile } }
     into layout.buildDirectory.dir('libs')
 }
-

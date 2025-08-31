@@ -1,4 +1,4 @@
-package org.eventhorizonlab.spi
+package com.github.eventhorizonlab.spi
 
 import kotlin.reflect.KClass
 
