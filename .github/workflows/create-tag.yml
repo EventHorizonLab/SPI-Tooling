@@ -7,6 +7,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   tag:
     runs-on: ubuntu-latest
@@ -39,5 +43,6 @@ jobs:
             
 
   call-release:
+    needs: tag
     uses: ./.github/workflows/release-and-publish.yml
     secrets: inherit
