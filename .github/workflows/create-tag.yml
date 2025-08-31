@@ -48,5 +48,5 @@ jobs:
     needs: tag
     uses: ./.github/workflows/release-and-publish.yml
     with:
-      tag_name: ${{ needs.tag.outputs.version }}
+      tag_name: "v${{ needs.tag.outputs.version }}"
     secrets: inherit
