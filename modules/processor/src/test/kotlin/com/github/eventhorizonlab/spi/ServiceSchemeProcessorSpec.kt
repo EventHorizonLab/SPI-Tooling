@@ -15,9 +15,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
 
     // --- Common compile helpers ---
     fun compile(
-        sources: List<SourceFile>,
-        classpaths: List<File> = emptyList(),
-        runProcessor: Boolean = true
+        sources: List<SourceFile>, classpaths: List<File> = emptyList(), runProcessor: Boolean = true
     ) = KotlinCompilation().apply {
         this.sources = sources
         if (runProcessor) {
@@ -27,19 +25,14 @@ class ServiceSchemeProcessorSpec : FunSpec({
         this.classpaths = classpaths
     }.compile()
 
-    fun compileApi(vararg sources: SourceFile) =
-        compile(sources.toList(), runProcessor = false)
+    fun compileApi(vararg sources: SourceFile) = compile(sources.toList(), runProcessor = false)
 
     fun compileImpl(apiResult: JvmCompilationResult, vararg sources: SourceFile) =
         compile(sources.toList(), listOf(apiResult.outputDirectory))
 
     fun assertServiceFile(result: JvmCompilationResult, contractFqcn: List<String>, vararg expectedImpls: String) {
         contractFqcn.forEach { fqcn ->
-            val lines = result.classLoader
-                .readServiceFile(fqcn)
-                ?.lines()
-                ?.filter { it.isNotBlank() }
-                ?.sorted()
+            val lines = result.classLoader.readServiceFile(fqcn)?.lines()?.filter { it.isNotBlank() }?.sorted()
             lines shouldBe expectedImpls.toList().sorted()
         }
     }
@@ -58,8 +51,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
             nameFn = { it.description },
             // Kotlin API + Kotlin impl (nested)
             ServiceCase(
-                "nested provider (Kotlin API + Kotlin impl)",
-                api = listOf(
+                "nested provider (Kotlin API + Kotlin impl)", api = listOf(
                     SourceFile.kotlin(
                         "Api.kt", """
                     package my.api
@@ -70,8 +62,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     }
                 """.trimIndent()
                     )
-                ),
-                impls = listOf(
+                ), impls = listOf(
                     SourceFile.kotlin(
                         "Impl.kt", """
                     package my.impl
@@ -83,14 +74,11 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     }
                 """.trimIndent()
                     )
-                ),
-                contractFqcn = listOf("my.api.Outer\$Inner"),
-                expectedImpls = listOf("my.impl.Impl\$ImplInner")
+                ), contractFqcn = listOf("my.api.Outer\$Inner"), expectedImpls = listOf("my.impl.Impl\$ImplInner")
             ),
             // Kotlin API + Kotlin impl (cross-module)
             ServiceCase(
-                "cross-module provider (Kotlin API + Kotlin impl)",
-                api = listOf(
+                "cross-module provider (Kotlin API + Kotlin impl)", api = listOf(
                     SourceFile.kotlin(
                         "Api.kt", """
                     package my.api
@@ -99,8 +87,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     interface Contract
                 """.trimIndent()
                     )
-                ),
-                impls = listOf(
+                ), impls = listOf(
                     SourceFile.kotlin(
                         "Impl.kt", """
                     package my.impl
@@ -110,14 +97,11 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     class Impl : Contract
                 """.trimIndent()
                     )
-                ),
-                contractFqcn = listOf("my.api.Contract"),
-                expectedImpls = listOf("my.impl.Impl")
+                ), contractFqcn = listOf("my.api.Contract"), expectedImpls = listOf("my.impl.Impl")
             ),
             // Kotlin API + Java impl
             ServiceCase(
-                "Kotlin API + Java impl",
-                api = listOf(
+                "Kotlin API + Java impl", api = listOf(
                     SourceFile.kotlin(
                         "Api.kt", """
                     package my.api
@@ -126,8 +110,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     interface Api
                 """.trimIndent()
                     )
-                ),
-                impls = listOf(
+                ), impls = listOf(
                     SourceFile.java(
                         "Impl.java", """
                     package my.impl;
@@ -137,14 +120,11 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     public class Impl implements Api {}
                 """.trimIndent()
                     )
-                ),
-                contractFqcn = listOf("my.api.Api"),
-                expectedImpls = listOf("my.impl.Impl")
+                ), contractFqcn = listOf("my.api.Api"), expectedImpls = listOf("my.impl.Impl")
             ),
             // Java API + Kotlin impl
             ServiceCase(
-                "Java API + Kotlin impl",
-                api = listOf(
+                "Java API + Kotlin impl", api = listOf(
                     SourceFile.java(
                         "Api.java", """
                     package my.api;
@@ -153,8 +133,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     public interface Api {}
                 """.trimIndent()
                     )
-                ),
-                impls = listOf(
+                ), impls = listOf(
                     SourceFile.kotlin(
                         "Impl.kt", """
                     package my.impl
@@ -164,14 +143,11 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     class Impl : Api
                 """.trimIndent()
                     )
-                ),
-                contractFqcn = listOf("my.api.Api"),
-                expectedImpls = listOf("my.impl.Impl")
+                ), contractFqcn = listOf("my.api.Api"), expectedImpls = listOf("my.impl.Impl")
             ),
             // Java API + Java impl
             ServiceCase(
-                "Java API + Java impl",
-                api = listOf(
+                "Java API + Java impl", api = listOf(
                     SourceFile.java(
                         "Contract.java", """
                     package my.api;
@@ -180,8 +156,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     public interface Contract {}
                 """.trimIndent()
                     )
-                ),
-                impls = listOf(
+                ), impls = listOf(
                     SourceFile.java(
                         "Impl.java", """
                     package my.impl;
@@ -191,9 +166,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     public class Impl implements Contract {}
                 """.trimIndent()
                     )
-                ),
-                contractFqcn = listOf("my.api.Contract"),
-                expectedImpls = listOf("my.impl.Impl")
+                ), contractFqcn = listOf("my.api.Contract"), expectedImpls = listOf("my.impl.Impl")
             ),
             // Multiple providers
             ServiceCase(
@@ -217,8 +190,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         @ServiceProvider(Contract::class)
                         class Impl1 : Contract
                     """.trimIndent()
-                    ),
-                    SourceFile.kotlin(
+                    ), SourceFile.kotlin(
                         "Impl2.kt", """
                         package my.impl
                         import my.api.Contract
@@ -226,8 +198,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         @ServiceProvider(Contract::class)
                         class Impl2 : Contract
                     """.trimIndent()
-                    ),
-                    SourceFile.java(
+                    ), SourceFile.java(
                         "Impl3.java", """
                         package my.impl;
                         import my.api.Contract;
@@ -239,10 +210,8 @@ class ServiceSchemeProcessorSpec : FunSpec({
                 ),
                 contractFqcn = listOf("my.api.Contract"),
                 expectedImpls = listOf("my.impl.Impl1", "my.impl.Impl2", "my.impl.Impl3")
-            ),
-            ServiceCase(
-                "provider implements multiple contracts (Kotlin)",
-                api = listOf(
+            ), ServiceCase(
+                "provider implements multiple contracts (Kotlin)", api = listOf(
                     SourceFile.kotlin(
                         "Apis.kt", """
                     package my.api
@@ -255,8 +224,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     interface Api2
                 """.trimIndent()
                     )
-                ),
-                impls = listOf(
+                ), impls = listOf(
                     SourceFile.kotlin(
                         "Impl.kt", """
                     package my.impl
@@ -267,13 +235,9 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     class Impl : Api, Api2
                 """.trimIndent()
                     )
-                ),
-                contractFqcn = listOf("my.api.Api", "my.api.Api2"),
-                expectedImpls = listOf("my.impl.Impl")
-            ),
-            ServiceCase(
-                "provider implements multiple contracts (Java)",
-                api = listOf(
+                ), contractFqcn = listOf("my.api.Api", "my.api.Api2"), expectedImpls = listOf("my.impl.Impl")
+            ), ServiceCase(
+                "provider implements multiple contracts (Java)", api = listOf(
                     SourceFile.java(
                         "Api.java", """
                         package my.api;
@@ -281,8 +245,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         @ServiceContract
                         public interface Api {}
                     """.trimIndent()
-                    ),
-                    SourceFile.java(
+                    ), SourceFile.java(
                         "Api2.java", """
                         package my.api;
                         import com.github.eventhorizonlab.spi.ServiceContract;
@@ -290,8 +253,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         public interface Api2 {}
                         """.trimIndent()
                     )
-                ),
-                impls = listOf(
+                ), impls = listOf(
                     SourceFile.java(
                         "Impl.java", """
                         package my.impl;
@@ -302,13 +264,9 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         public class Impl implements Api, Api2 {}
                         """.trimIndent()
                     )
-                ),
-                contractFqcn = listOf("my.api.Api", "my.api.Api2"),
-                expectedImpls = listOf("my.impl.Impl")
-            ),
-            ServiceCase(
-                "provider implements multiple contracts (Kotlin+Java)",
-                api = listOf(
+                ), contractFqcn = listOf("my.api.Api", "my.api.Api2"), expectedImpls = listOf("my.impl.Impl")
+            ), ServiceCase(
+                "provider implements multiple contracts (Kotlin+Java)", api = listOf(
                     SourceFile.kotlin(
                         "Apis.kt", """
                         package my.api
@@ -319,8 +277,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         interface Api2
                     """.trimIndent()
                     )
-                ),
-                impls = listOf(
+                ), impls = listOf(
                     SourceFile.java(
                         "Impl.java", """
                             package my.impl;
@@ -331,13 +288,9 @@ class ServiceSchemeProcessorSpec : FunSpec({
                             public class Impl implements Api, Api2 {}
                         """.trimIndent()
                     )
-                ),
-                contractFqcn = listOf("my.api.Api", "my.api.Api2"),
-                expectedImpls = listOf("my.impl.Impl")
-            ),
-            ServiceCase(
-                "provider implements multiple contracts (Java+Kotlin)",
-                api = listOf(
+                ), contractFqcn = listOf("my.api.Api", "my.api.Api2"), expectedImpls = listOf("my.impl.Impl")
+            ), ServiceCase(
+                "provider implements multiple contracts (Java+Kotlin)", api = listOf(
                     SourceFile.java(
                         "Api.java", """
                         package my.api;
@@ -345,8 +298,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         @ServiceContract
                         public interface Api {}
                     """.trimIndent()
-                    ),
-                    SourceFile.kotlin(
+                    ), SourceFile.kotlin(
                         "Api2.kt", """
                         package my.api
                         import com.github.eventhorizonlab.spi.ServiceContract
@@ -354,8 +306,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         interface Api2
                         """.trimIndent()
                     )
-                ),
-                impls = listOf(
+                ), impls = listOf(
                     SourceFile.kotlin(
                         "Impl.kt", """
                         package my.impl
@@ -366,9 +317,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         class Impl : Api, Api2
                         """.trimIndent()
                     )
-                ),
-                contractFqcn = listOf("my.api.Api", "my.api.Api2"),
-                expectedImpls = listOf("my.impl.Impl")
+                ), contractFqcn = listOf("my.api.Api", "my.api.Api2"), expectedImpls = listOf("my.impl.Impl")
             )
         ) { case ->
             val apiResult = compileApi(*case.api.toTypedArray())
@@ -383,17 +332,13 @@ class ServiceSchemeProcessorSpec : FunSpec({
 
     // --- Error scenarios ---
     data class ErrorCase(
-        val description: String,
-        val sources: List<SourceFile>,
-        val expectedMessage: String
+        val description: String, val sources: List<SourceFile>, val expectedMessage: String
     )
 
     context("error cases") {
         withData(
-            nameFn = { it.description },
-            ErrorCase(
-                "no provider for contract (Kotlin)",
-                listOf(
+            nameFn = { it.description }, ErrorCase(
+                "no provider for contract (Kotlin)", listOf(
                     SourceFile.kotlin(
                         "Api.kt", """
                     package my.api
@@ -402,12 +347,9 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     interface LonelyContract
                 """.trimIndent()
                     )
-                ),
-                missingServiceProviderErrorMessage("my.api.LonelyContract")
-            ),
-            ErrorCase(
-                "no provider for contract (Java)",
-                listOf(
+                ), missingServiceProviderErrorMessage("my.api.LonelyContract")
+            ), ErrorCase(
+                "no provider for contract (Java)", listOf(
                     SourceFile.java(
                         "LonelyContract.java", """
                     package my.api;
@@ -416,12 +358,9 @@ class ServiceSchemeProcessorSpec : FunSpec({
                     public interface LonelyContract {}
                 """.trimIndent()
                     )
-                ),
-                missingServiceProviderErrorMessage("my.api.LonelyContract")
-            ),
-            ErrorCase(
-                "implementation not annotated with @ServiceProvider (Kotlin)",
-                listOf(
+                ), missingServiceProviderErrorMessage("my.api.LonelyContract")
+            ), ErrorCase(
+                "implementation not annotated with @ServiceProvider (Kotlin)", listOf(
                     SourceFile.kotlin(
                         "Api.kt", """
                         package my.api
@@ -429,20 +368,16 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         @ServiceContract
                         interface Contract
                     """.trimIndent()
-                    ),
-                    SourceFile.kotlin(
+                    ), SourceFile.kotlin(
                         "Impl.kt", """
                         package my.impl
                         import my.api.Contract
                         class Impl : Contract
                     """.trimIndent()
                     )
-                ),
-                missingServiceProviderErrorMessage("my.api.Contract")
-            ),
-            ErrorCase(
-                "implementation not annotated with @ServiceProvider (Java)",
-                listOf(
+                ), missingServiceProviderErrorMessage("my.api.Contract")
+            ), ErrorCase(
+                "implementation not annotated with @ServiceProvider (Java)", listOf(
                     SourceFile.java(
                         "Contract.java", """
                         package my.api;
@@ -450,20 +385,16 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         @ServiceContract
                         public interface Contract {}
                     """.trimIndent()
-                    ),
-                    SourceFile.java(
+                    ), SourceFile.java(
                         "Impl.java", """
                         package my.impl;
                         import my.api.Contract;
                         public class Impl implements Contract {}
                     """.trimIndent()
                     )
-                ),
-                missingServiceProviderErrorMessage("my.api.Contract")
-            ),
-            ErrorCase(
-                "implementation not annotated with @ServiceProvider (Java+Kotlin)",
-                listOf(
+                ), missingServiceProviderErrorMessage("my.api.Contract")
+            ), ErrorCase(
+                "implementation not annotated with @ServiceProvider (Java+Kotlin)", listOf(
                     SourceFile.java(
                         "Contract.java", """
                         package my.api;
@@ -471,20 +402,16 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         @ServiceContract
                         public interface Contract {}
                     """.trimIndent()
-                    ),
-                    SourceFile.kotlin(
+                    ), SourceFile.kotlin(
                         "Impl.kt", """
                         package my.impl
                         import my.api.Contract
                         class Impl : Contract
                     """.trimIndent()
                     )
-                ),
-                missingServiceProviderErrorMessage("my.api.Contract")
-            ),
-            ErrorCase(
-                "implementation not annotated with @ServiceProvider (Kotlin+Java)",
-                listOf(
+                ), missingServiceProviderErrorMessage("my.api.Contract")
+            ), ErrorCase(
+                "implementation not annotated with @ServiceProvider (Kotlin+Java)", listOf(
                     SourceFile.kotlin(
                         "Api.kt", """
                         package my.api
@@ -492,27 +419,22 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         @ServiceContract
                         interface Contract
                     """.trimIndent()
-                    ),
-                    SourceFile.java(
+                    ), SourceFile.java(
                         "Impl.java", """
                         package my.impl;
                         import my.api.Contract;
                         public class Impl implements Contract {}
                     """.trimIndent()
                     )
-                ),
-                missingServiceProviderErrorMessage("my.api.Contract")
-            ),
-            ErrorCase(
-                "provider target not annotated with @ServiceContract (Kotlin)",
-                listOf(
+                ), missingServiceProviderErrorMessage("my.api.Contract")
+            ), ErrorCase(
+                "provider target not annotated with @ServiceContract (Kotlin)", listOf(
                     SourceFile.kotlin(
                         "Api.kt", """
                         package my.api
                         interface NotAContract
                     """.trimIndent()
-                    ),
-                    SourceFile.kotlin(
+                    ), SourceFile.kotlin(
                         "Impl.kt", """
                         package my.impl
                         import my.api.NotAContract
@@ -521,19 +443,15 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         class Impl : NotAContract
                     """.trimIndent()
                     )
-                ),
-                "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
-            ),
-            ErrorCase(
-                "provider target not annotated with @ServiceContract (Java)",
-                listOf(
+                ), "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
+            ), ErrorCase(
+                "provider target not annotated with @ServiceContract (Java)", listOf(
                     SourceFile.java(
                         "NotAContract.java", """
                         package my.api;
                         public interface NotAContract {}
                     """.trimIndent()
-                    ),
-                    SourceFile.java(
+                    ), SourceFile.java(
                         "Impl.java", """
                         package my.impl;
                         import my.api.NotAContract;
@@ -542,19 +460,15 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         public class Impl implements NotAContract {}
                     """.trimIndent()
                     )
-                ),
-                "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
-            ),
-            ErrorCase(
-                "provider target not annotated with @ServiceContract (kotlin+java)",
-                listOf(
+                ), "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
+            ), ErrorCase(
+                "provider target not annotated with @ServiceContract (kotlin+java)", listOf(
                     SourceFile.kotlin(
                         "Api.kt", """
                         package my.api
                         interface NotAContract
                     """.trimIndent()
-                    ),
-                    SourceFile.java(
+                    ), SourceFile.java(
                         "Impl.java", """
                         package my.impl;
                         import my.api.NotAContract;
@@ -563,19 +477,15 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         public class Impl implements NotAContract {}
                     """.trimIndent()
                     )
-                ),
-                "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
-            ),
-            ErrorCase(
-                "provider target not annotated with @ServiceContract (java+kotlin)",
-                listOf(
+                ), "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
+            ), ErrorCase(
+                "provider target not annotated with @ServiceContract (java+kotlin)", listOf(
                     SourceFile.java(
                         "NotAContract.java", """
                         package my.api;
                         public interface NotAContract {}
                     """.trimIndent()
-                    ),
-                    SourceFile.kotlin(
+                    ), SourceFile.kotlin(
                         "Impl.kt", """
                         package my.impl
                         import my.api.NotAContract
@@ -584,8 +494,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         class Impl : NotAContract
                     """.trimIndent()
                     )
-                ),
-                "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
+                ), "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
             )
         ) { case ->
             val result = compile(case.sources)
