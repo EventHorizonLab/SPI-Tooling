@@ -2,6 +2,7 @@ plugins {
     id 'base'
     id 'org.jetbrains.kotlin.jvm' version '2.2.0'
     id 'org.jetbrains.kotlin.kapt' version '2.2.0'
+    id "com.vanniktech.maven.publish" version "0.34.0"
 }
 
 allprojects {
@@ -14,24 +15,53 @@ allprojects {
 
 subprojects {
     apply plugin: 'java-library'
-    apply plugin: 'maven-publish'
     apply plugin: 'org.jetbrains.kotlin.jvm'
     apply plugin: 'org.jetbrains.kotlin.kapt'
-    apply plugin: 'signing'
+    apply plugin: 'com.vanniktech.maven.publish'
 
-    def projName = project.name
+    // Configure Vanniktech plugin
+    mavenPublishing {
+        // Central Portal publishing
+        publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
 
-    publishing {
-        repositories {
-            maven {
-                name = "CentralPortal"
-                url = uri("https://central.sonatype.com/api/v1/publisher/upload")
-                credentials {
-                    username = findProperty('centralPortalUsername') as String
-                    password = findProperty('centralPortalPassword') as String
+        // Sign all publications with in‑memory keys
+        signAllPublications()
+
+        // Optional: override artifactId per module
+        coordinates(
+                groupId = rootProject.group as String,
+                artifactId = "${rootProject.name}-${project.name}",
+                version = rootProject.version as String
+        )
+
+        pom {
+            name.set("${rootProject.name}-${project.name}")
+            description.set("A module of the ${rootProject.name} project.")
+            url.set("https://github.com/EventHorizonLab/SPI-Tooling")
+            licenses {
+                license {
+                    name.set("MIT License")
+                    url.set("https://opensource.org/license/mit")
                 }
             }
+            developers {
+                developer {
+                    id.set("eventhorizonlab")
+                    name.set("EventHorizonLab")
+                    url.set("https://github.com/EventHorizonLab")
+                }
+            }
+            scm {
+                url.set("https://github.com/EventHorizonLab/spi-tooling")
+                connection.set("scm:git:https://github.com/EventHorizonLab/spi-tooling.git")
+                developerConnection.set("scm:git:ssh://git@github.com:EventHorizonLab/spi-tooling.git")
+            }
+        }
+    }
 
+    // Add GitHub Packages as an extra target
+    publishing {
+        repositories {
             maven {
                 name = "GitHubPackages"
                 url = uri("https://maven.pkg.github.com/EventHorizonLab/SPI-Tooling")
@@ -39,96 +69,6 @@ subprojects {
                     username = findProperty('gprUser') ?: System.getenv('GITHUB_ACTOR')
                     password = findProperty('gprToken') ?: System.getenv('GITHUB_TOKEN')
                 }
-            }
-        }
-
-        publications {
-            create('maven', MavenPublication) {
-                from components.java
-                artifactId = "${rootProject.name}-${projName}"
-                groupId = rootProject.group as String
-                version = rootProject.version as String
-                pom {
-                    name = artifactId
-                    description = "A module of the ${rootProject.name} project."
-                    url = 'https://github.com/EventHorizonLab/SPI-Tooling'
-                    licenses {
-                        license {
-                            name = 'MIT License'
-                            url = 'https://opensource.org/license/mit'
-                        }
-                    }
-                    developers {
-                        developer {
-                            id = 'eventhorizonlab'
-                            name = 'EventHorizonLab'
-                            url = 'https://github.com/EventHorizonLab'
-                        }
-                    }
-                    scm {
-                        url = 'https://github.com/EventHorizonLab/spi-tooling'
-                        connection = 'scm:git:https://github.com/EventHorizonLab/spi-tooling.git'
-                        developerConnection = 'scm:git:ssh://git@github.com:EventHorizonLab/spi-tooling.git'
-                    }
-                }
-            }
-        }
-    }
-
-    signing {
-        def signingKey = findProperty('signingKey') as String
-        def signingPassword = findProperty('signingPassword') as String
-
-        if (signingKey && signingPassword) {
-            useInMemoryPgpKeys(signingKey, signingPassword)
-            sign publishing.publications.maven
-        } else {
-            println "⚠️  Signing key or password not found. Skipping signing for project $projName."
-        }
-    }
-
-    tasks.withType(PublishToMavenLocal).configureEach { t ->
-        doLast {
-            def pub = t.publication
-            if (pub instanceof MavenPublication) {
-                def coords = "${pub.groupId}:${pub.artifactId}:${pub.version}"
-                println ""
-                println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                println "📦 Published to Maven Local"
-                println "   Coordinates : $coords"
-                println "   Repository  : mavenLocal (~/.m2/repository)"
-                println "   Artifacts   :"
-                pub.artifacts.each { art ->
-                    println "      • ${art.file.name}  →  ${art.file}"
-                }
-                println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                println ""
-            } else {
-                println "⚠️  Task ${t.path} did not publish a MavenPublication"
-            }
-        }
-    }
-
-    // "3W@w[`rzTvh_1>-~N_{=z{$W#s@-c
-
-    tasks.withType(PublishToMavenRepository).configureEach {
-        doLast {
-            def pub = it.publication
-            if (pub instanceof MavenPublication) {
-                def coords = "${pub.groupId}:${pub.artifactId}:${pub.version}"
-                println ""
-                println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                println "📦 Published to Remote Repository"
-                println "   Coordinates : $coords"
-                println "   Repository  : ${it.repository.url}"
-                println "   Artifacts   :"
-                pub.artifacts.each { art ->
-                    println "      • ${art.file.name}  →  ${art.file}"
-                }
-                println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                println ""
-            } else {
-                println "⚠️  Task ${it.path} did not publish a MavenPublication"
             }
         }
     }
