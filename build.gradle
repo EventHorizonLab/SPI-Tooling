@@ -3,12 +3,8 @@ plugins {
 }
 
 allprojects {
-    group = findProperty('group')
-    def baseVer = findProperty('baseVersion') as String
-    if (!baseVer.endsWith('-SNAPSHOT')) {
-        baseVer += '-SNAPSHOT'
-    }
-    version = baseVer
+    group = findProperty('group') as String
+    version = findProperty('baseVersion') as String
     repositories {
         mavenCentral()
     }
