@@ -1,8 +1,10 @@
 package com.github.eventhorizonlab.spi
 
+import com.tschuchort.compiletesting.JvmCompilationResult
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.datatest.withData
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
@@ -10,6 +12,8 @@ import java.io.File
 
 @OptIn(ExperimentalCompilerApi::class)
 class ServiceSchemeProcessorSpec : FunSpec({
+
+    // --- Common compile helpers ---
     fun compile(
         sources: List<SourceFile>,
         classpaths: List<File> = emptyList(),
@@ -23,190 +27,344 @@ class ServiceSchemeProcessorSpec : FunSpec({
         this.classpaths = classpaths
     }.compile()
 
-    test("generates correct META-INF/services for nested provider") {
-        val api = SourceFile.kotlin(
-            "Api.kt",
-            """
-            package my.api
-            import com.github.eventhorizonlab.spi.ServiceContract
-            interface Outer {
-                @ServiceContract
-                interface Inner
-            }
-            """.trimIndent()
-        )
+    fun compileApi(vararg sources: SourceFile) =
+        compile(sources.toList(), runProcessor = false)
 
-        val impl = SourceFile.kotlin(
-            "Impl.kt",
-            """
-            package my.impl
-            import my.api.Outer
-            import my.api.Outer.Inner
-            import com.github.eventhorizonlab.spi.ServiceProvider
-            class Impl {
-              @ServiceProvider(Inner::class)
-              class ImplInner : Inner
-            }
-            """.trimIndent()
-        )
+    fun compileImpl(apiResult: JvmCompilationResult, vararg sources: SourceFile) =
+        compile(sources.toList(), listOf(apiResult.outputDirectory))
 
-        val apiResult = compile(listOf(api), runProcessor = false)
-        apiResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
-
-        val implResult = compile(listOf(impl), listOf(apiResult.outputDirectory))
-        implResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
-
-        implResult.classLoader.readServiceFile("my.api.Outer\$Inner")?.trim() shouldBe "my.impl.Impl\$ImplInner"
-    }
-
-    test("generates META-INF/services for cross-module provider") {
-        val api = SourceFile.kotlin(
-            "Api.kt",
-            """
-            package my.api
-            import com.github.eventhorizonlab.spi.ServiceContract
-            @ServiceContract
-            interface Contract
-            """.trimIndent()
-        )
-
-        val impl = SourceFile.kotlin(
-            "Impl.kt",
-            """
-            package my.impl
-            import my.api.Contract
-            import com.github.eventhorizonlab.spi.ServiceProvider
-            @ServiceProvider(Contract::class)
-            class Impl : Contract
-            """.trimIndent()
-        )
-
-        val apiResult = compile(listOf(api), runProcessor = false)
-        apiResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
-
-        val implResult = compile(listOf(impl), listOf(apiResult.outputDirectory))
-        implResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
-
-        implResult.classLoader.readServiceFile("my.api.Contract")?.trim() shouldBe "my.impl.Impl"
-    }
-
-    test("emits error when contract has no provider") {
-        val api = SourceFile.kotlin(
-            "Api.kt",
-            """
-            package my.api
-            import com.github.eventhorizonlab.spi.ServiceContract
-            @ServiceContract
-            interface LonelyContract
-            """.trimIndent()
-        )
-
-        val result = compile(listOf(api))
-        result.exitCode shouldBe KotlinCompilation.ExitCode.COMPILATION_ERROR
-        result.messages.contains(missingServiceProviderErrorMessage("my.api.LonelyContract")) shouldBe true
-    }
-
-    test("emits error when provider target is not annotated with @ServiceContract") {
-        val api = SourceFile.kotlin(
-            "Api.kt",
-            """
-        package my.api
-        interface NotAContract
-        """.trimIndent()
-        )
-
-        val impl = SourceFile.kotlin(
-            "Impl.kt",
-            """
-        package my.impl
-        import my.api.NotAContract
-        import com.github.eventhorizonlab.spi.ServiceProvider
-        @ServiceProvider(NotAContract::class)
-        class Impl : NotAContract
-        """.trimIndent()
-        )
-
-        val result = compile(listOf(api, impl))
-        result.exitCode shouldBe KotlinCompilation.ExitCode.COMPILATION_ERROR
-        result.messages shouldContain "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
-    }
-
-
-    test("writes all providers for a contract into META-INF/services") {
-        val api = SourceFile.kotlin(
-            "Api.kt",
-            """
-        package my.api
-        import com.github.eventhorizonlab.spi.ServiceContract
-        @ServiceContract
-        interface Contract
-        """.trimIndent()
-        )
-
-        val impl1 = SourceFile.kotlin(
-            "Impl1.kt",
-            """
-        package my.impl
-        import my.api.Contract
-        import com.github.eventhorizonlab.spi.ServiceProvider
-        @ServiceProvider(Contract::class)
-        class Impl1 : Contract
-        """.trimIndent()
-        )
-
-        val impl2 = SourceFile.kotlin(
-            "Impl2.kt",
-            """
-        package my.impl
-        import my.api.Contract
-        import com.github.eventhorizonlab.spi.ServiceProvider
-        @ServiceProvider(Contract::class)
-        class Impl2 : Contract
-        """.trimIndent()
-        )
-
-        val apiResult = compile(listOf(api), runProcessor = false)
-        val implResult = compile(listOf(impl1, impl2), listOf(apiResult.outputDirectory))
-        implResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
-
-        val lines = implResult.classLoader
-            .readServiceFile("my.api.Contract")
+    fun assertServiceFile(result: JvmCompilationResult, contractFqcn: String, vararg expectedImpls: String) {
+        val lines = result.classLoader
+            .readServiceFile(contractFqcn)
             ?.lines()
             ?.filter { it.isNotBlank() }
             ?.sorted()
-
-        lines shouldBe listOf("my.impl.Impl1", "my.impl.Impl2")
+        lines shouldBe expectedImpls.toList().sorted()
     }
 
-    test("generates correct META-INF with Java source and Kotlin impl") {
-        val api = SourceFile.java(
-            "Api.java",
-            """
-            package my.api;
-            import com.github.eventhorizonlab.spi.ServiceContract;
-            @ServiceContract
-            public interface Api {}
-            """.trimIndent()
-        )
+    // --- Happy path scenarios ---
+    data class ServiceCase(
+        val description: String,
+        val api: SourceFile,
+        val impls: List<SourceFile>,
+        val contractFqcn: String,
+        val expectedImpls: List<String>
+    )
 
-        val impl = SourceFile.kotlin(
-            "Impl.kt",
-            """
-            package my.impl
-            import my.api.Api
-            import com.github.eventhorizonlab.spi.ServiceProvider
-            @ServiceProvider(Api::class)
-            class Impl : Api
-            """.trimIndent()
-        )
+    context("service generation happy paths") {
+        withData(
+            nameFn = { it.description },
+            // Kotlin API + Kotlin impl (nested)
+            ServiceCase(
+                "nested provider (Kotlin API + Kotlin impl)",
+                api = SourceFile.kotlin("Api.kt", """
+                    package my.api
+                    import com.github.eventhorizonlab.spi.ServiceContract
+                    interface Outer {
+                        @ServiceContract
+                        interface Inner
+                    }
+                """.trimIndent()),
+                impls = listOf(SourceFile.kotlin("Impl.kt", """
+                    package my.impl
+                    import my.api.Outer.Inner
+                    import com.github.eventhorizonlab.spi.ServiceProvider
+                    class Impl {
+                        @ServiceProvider(Inner::class)
+                        class ImplInner : Inner
+                    }
+                """.trimIndent())),
+                contractFqcn = "my.api.Outer\$Inner",
+                expectedImpls = listOf("my.impl.Impl\$ImplInner")
+            ),
+            // Kotlin API + Kotlin impl (cross-module)
+            ServiceCase(
+                "cross-module provider (Kotlin API + Kotlin impl)",
+                api = SourceFile.kotlin("Api.kt", """
+                    package my.api
+                    import com.github.eventhorizonlab.spi.ServiceContract
+                    @ServiceContract
+                    interface Contract
+                """.trimIndent()),
+                impls = listOf(SourceFile.kotlin("Impl.kt", """
+                    package my.impl
+                    import my.api.Contract
+                    import com.github.eventhorizonlab.spi.ServiceProvider
+                    @ServiceProvider(Contract::class)
+                    class Impl : Contract
+                """.trimIndent())),
+                contractFqcn = "my.api.Contract",
+                expectedImpls = listOf("my.impl.Impl")
+            ),
+            // Kotlin API + Java impl
+            ServiceCase(
+                "Kotlin API + Java impl",
+                api = SourceFile.kotlin("Api.kt", """
+                    package my.api
+                    import com.github.eventhorizonlab.spi.ServiceContract
+                    @ServiceContract
+                    interface Api
+                """.trimIndent()),
+                impls = listOf(SourceFile.java("Impl.java", """
+                    package my.impl;
+                    import my.api.Api;
+                    import com.github.eventhorizonlab.spi.ServiceProvider;
+                    @ServiceProvider(Api.class)
+                    public class Impl implements Api {}
+                """.trimIndent())),
+                contractFqcn = "my.api.Api",
+                expectedImpls = listOf("my.impl.Impl")
+            ),
+            // Java API + Kotlin impl
+            ServiceCase(
+                "Java API + Kotlin impl",
+                api = SourceFile.java("Api.java", """
+                    package my.api;
+                    import com.github.eventhorizonlab.spi.ServiceContract;
+                    @ServiceContract
+                    public interface Api {}
+                """.trimIndent()),
+                impls = listOf(SourceFile.kotlin("Impl.kt", """
+                    package my.impl
+                    import my.api.Api
+                    import com.github.eventhorizonlab.spi.ServiceProvider
+                    @ServiceProvider(Api::class)
+                    class Impl : Api
+                """.trimIndent())),
+                contractFqcn = "my.api.Api",
+                expectedImpls = listOf("my.impl.Impl")
+            ),
+            // Java API + Java impl
+            ServiceCase(
+                "Java API + Java impl",
+                api = SourceFile.java("Contract.java", """
+                    package my.api;
+                    import com.github.eventhorizonlab.spi.ServiceContract;
+                    @ServiceContract
+                    public interface Contract {}
+                """.trimIndent()),
+                impls = listOf(SourceFile.java("Impl.java", """
+                    package my.impl;
+                    import my.api.Contract;
+                    import com.github.eventhorizonlab.spi.ServiceProvider;
+                    @ServiceProvider(Contract.class)
+                    public class Impl implements Contract {}
+                """.trimIndent())),
+                contractFqcn = "my.api.Contract",
+                expectedImpls = listOf("my.impl.Impl")
+            ),
+            // Multiple providers
+            ServiceCase(
+                "multiple providers for same contract",
+                api = SourceFile.kotlin("Api.kt", """
+                    package my.api
+                    import com.github.eventhorizonlab.spi.ServiceContract
+                    @ServiceContract
+                    interface Contract
+                """.trimIndent()),
+                impls = listOf(
+                    SourceFile.kotlin("Impl1.kt", """
+                        package my.impl
+                        import my.api.Contract
+                        import com.github.eventhorizonlab.spi.ServiceProvider
+                        @ServiceProvider(Contract::class)
+                        class Impl1 : Contract
+                    """.trimIndent()),
+                    SourceFile.kotlin("Impl2.kt", """
+                        package my.impl
+                        import my.api.Contract
+                        import com.github.eventhorizonlab.spi.ServiceProvider
+                        @ServiceProvider(Contract::class)
+                        class Impl2 : Contract
+                    """.trimIndent()),
+                    SourceFile.java("Impl3.java", """
+                        package my.impl;
+                        import my.api.Contract;
+                        import com.github.eventhorizonlab.spi.ServiceProvider;
+                        @ServiceProvider(Contract.class)
+                        public class Impl3 implements Contract {}
+                    """.trimIndent())
+                ),
+                contractFqcn = "my.api.Contract",
+                expectedImpls = listOf("my.impl.Impl1", "my.impl.Impl2", "my.impl.Impl3")
+            )
+        ) { case ->
+            val apiResult = compileApi(case.api)
+            apiResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
 
-        val apiResult = compile(listOf(api), runProcessor = false)
-        apiResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
+            val implResult = compileImpl(apiResult, *case.impls.toTypedArray())
+            implResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
 
-        val implResult = compile(listOf(impl), listOf(apiResult.outputDirectory))
-        implResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
-
-        implResult.classLoader.readServiceFile("my.api.Api")?.trim() shouldBe "my.impl.Impl"
+            assertServiceFile(implResult, case.contractFqcn, *case.expectedImpls.toTypedArray())
+        }
     }
 
+    // --- Error scenarios ---
+    data class ErrorCase(
+        val description: String,
+        val sources: List<SourceFile>,
+        val expectedMessage: String
+    )
+
+    context("error cases") {
+        withData(
+            nameFn = { it.description },
+            ErrorCase(
+                "no provider for contract (Kotlin)",
+                listOf(SourceFile.kotlin("Api.kt", """
+                    package my.api
+                    import com.github.eventhorizonlab.spi.ServiceContract
+                    @ServiceContract
+                    interface LonelyContract
+                """.trimIndent())),
+                missingServiceProviderErrorMessage("my.api.LonelyContract")
+            ),
+            ErrorCase(
+                "no provider for contract (Java)",
+                listOf(SourceFile.java("LonelyContract.java", """
+                    package my.api;
+                    import com.github.eventhorizonlab.spi.ServiceContract;
+                    @ServiceContract
+                    public interface LonelyContract {}
+                """.trimIndent())),
+                missingServiceProviderErrorMessage("my.api.LonelyContract")
+            ),
+            ErrorCase("implementation not annotated with @ServiceProvider (Kotlin)",
+                listOf(
+                    SourceFile.kotlin("Api.kt", """
+                        package my.api
+                        import com.github.eventhorizonlab.spi.ServiceContract
+                        @ServiceContract
+                        interface Contract
+                    """.trimIndent()),
+                    SourceFile.kotlin("Impl.kt", """
+                        package my.impl
+                        import my.api.Contract
+                        class Impl : Contract
+                    """.trimIndent())
+                ),
+                missingServiceProviderErrorMessage("my.api.Contract")
+            ),
+            ErrorCase("implementation not annotated with @ServiceProvider (Java)",
+                listOf(
+                    SourceFile.java("Contract.java", """
+                        package my.api;
+                        import com.github.eventhorizonlab.spi.ServiceContract;
+                        @ServiceContract
+                        public interface Contract {}
+                    """.trimIndent()),
+                    SourceFile.java("Impl.java", """
+                        package my.impl;
+                        import my.api.Contract;
+                        public class Impl implements Contract {}
+                    """.trimIndent())
+                ),
+                missingServiceProviderErrorMessage("my.api.Contract")
+            ),
+            ErrorCase("implementation not annotated with @ServiceProvider (Java+Kotlin)",
+                listOf(
+                    SourceFile.java("Contract.java", """
+                        package my.api;
+                        import com.github.eventhorizonlab.spi.ServiceContract;
+                        @ServiceContract
+                        public interface Contract {}
+                    """.trimIndent()),
+                    SourceFile.kotlin("Impl.kt", """
+                        package my.impl
+                        import my.api.Contract
+                        class Impl : Contract
+                    """.trimIndent())
+                ),
+                missingServiceProviderErrorMessage("my.api.Contract")
+            ),
+            ErrorCase("implementation not annotated with @ServiceProvider (Kotlin+Java)",
+                listOf(
+                    SourceFile.kotlin("Api.kt", """
+                        package my.api
+                        import com.github.eventhorizonlab.spi.ServiceContract
+                        @ServiceContract
+                        interface Contract
+                    """.trimIndent()),
+                    SourceFile.java("Impl.java", """
+                        package my.impl;
+                        import my.api.Contract;
+                        public class Impl implements Contract {}
+                    """.trimIndent())
+                ),
+                missingServiceProviderErrorMessage("my.api.Contract")
+            ),
+            ErrorCase(
+                "provider target not annotated with @ServiceContract (Kotlin)",
+                listOf(
+                    SourceFile.kotlin("Api.kt", """
+                        package my.api
+                        interface NotAContract
+                    """.trimIndent()),
+                    SourceFile.kotlin("Impl.kt", """
+                        package my.impl
+                        import my.api.NotAContract
+                        import com.github.eventhorizonlab.spi.ServiceProvider
+                        @ServiceProvider(NotAContract::class)
+                        class Impl : NotAContract
+                    """.trimIndent())
+                ),
+                "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
+            ),
+            ErrorCase(
+                "provider target not annotated with @ServiceContract (Java)",
+                listOf(
+                    SourceFile.java("NotAContract.java", """
+                        package my.api;
+                        public interface NotAContract {}
+                    """.trimIndent()),
+                    SourceFile.java("Impl.java", """
+                        package my.impl;
+                        import my.api.NotAContract;
+                        import com.github.eventhorizonlab.spi.ServiceProvider;
+                        @ServiceProvider(NotAContract.class)
+                        public class Impl implements NotAContract {}
+                    """.trimIndent())
+                ),
+                "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
+            ),
+            ErrorCase(
+                "provider target not annotated with @ServiceContract (kotlin+java)",
+                listOf(
+                    SourceFile.kotlin("Api.kt", """
+                        package my.api
+                        interface NotAContract
+                    """.trimIndent()),
+                    SourceFile.java("Impl.java", """
+                        package my.impl;
+                        import my.api.NotAContract;
+                        import com.github.eventhorizonlab.spi.ServiceProvider;
+                        @ServiceProvider(NotAContract.class)
+                        public class Impl implements NotAContract {}
+                    """.trimIndent())
+                ),
+                "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
+            ),
+            ErrorCase(
+                "provider target not annotated with @ServiceContract (java+kotlin)",
+                listOf(
+                    SourceFile.java("NotAContract.java", """
+                        package my.api;
+                        public interface NotAContract {}
+                    """.trimIndent()),
+                    SourceFile.kotlin("Impl.kt", """
+                        package my.impl
+                        import my.api.NotAContract
+                        import com.github.eventhorizonlab.spi.ServiceProvider
+                        @ServiceProvider(NotAContract::class)
+                        class Impl : NotAContract
+                    """.trimIndent())
+                ),
+                "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
+            )
+        ) { case ->
+            val result = compile(case.sources)
+            result.exitCode shouldBe KotlinCompilation.ExitCode.COMPILATION_ERROR
+            result.messages shouldContain case.expectedMessage
+        }
+    }
 })
