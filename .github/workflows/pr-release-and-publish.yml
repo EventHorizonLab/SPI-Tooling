@@ -15,6 +15,11 @@ permissions:
   pull-requests: write
 
 jobs:
+  verify:
+    name: Verify
+    uses: ./.github/workflows/verify-version.yml
+    secrets: inherit
+
   build-test-publish:
     name: Build, Test & Publish Snapshot
     runs-on: ubuntu-latest
@@ -29,9 +34,6 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
-      - name: Verify SemVer Version
-        uses: ./.github/workflows/verify-version.yml
 
       - name: Setup JDK 24 for Kotlin 2.2.0
         uses: actions/setup-java@v5
