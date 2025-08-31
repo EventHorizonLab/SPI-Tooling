@@ -90,7 +90,7 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         uses: peter-evans/create-or-update-comment@v4
         with:
-          comment-id: pr-snapshot-coordinates-${{ github.event.pull_request.number }}
+          comment-id: 1093109311
           issue-number: ${{ github.event.pull_request.number }}
           body: |
             🆕 **PR Snapshot Published to Maven Central Snapshot Repository**
@@ -104,3 +104,5 @@ jobs:
             
             _This comment will be updated automatically if a new snapshot is published for this PR._
           edit-mode: replace
+          reactions: rocket
+          reactions-edit-mode: replace
