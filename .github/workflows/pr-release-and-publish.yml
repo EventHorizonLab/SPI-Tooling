@@ -86,13 +86,21 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         run: ./gradlew publishToMavenCentral -Pversion=${{ steps.versioning.outputs.snapshot_version }} --stacktrace --info
 
+      - name: Find Comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- PR Snapshot Coordinates -->'
       - name: Comment Snapshot Coordinates on PR
         if: steps.changes.outputs.changed == 'true'
         uses: peter-evans/create-or-update-comment@v4
         with:
-          comment-id: 1093109311
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
           body: |
+            <!-- PR Snapshot Coordinates -->
             🆕 **PR Snapshot Published to Maven Central Snapshot Repository**
             
             You can test this PR build by adding the following dependencies:
