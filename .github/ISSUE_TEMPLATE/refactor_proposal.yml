@@ -1,0 +1,15 @@
+name: Refactor Proposal
+description: Propose non‑functional internal improvements.
+title: "refactor: "
+labels: ["type: refactor", "status: needs triage"]
+body:
+  - type: textarea
+    attributes:
+      label: What should be refactored?
+      placeholder: e.g., code structure, module organization, naming conventions
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Why refactor?
+      description: What problem will this solve? Simpler API, better performance, etc.
