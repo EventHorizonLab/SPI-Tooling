@@ -1,4 +1,5 @@
-name: PR Snapshot Publish
+name: PR Release & Snapshot Publish
+
 on:
   pull_request:
     branches:
@@ -7,11 +8,6 @@ on:
       - synchronize
       - opened
       - reopened
-    paths:
-      - 'modules/**/src/main/**'
-      - 'modules/**/build.gradle'
-      - 'build.gradle'
-      - 'gradle.properties'
 
 permissions:
   contents: read
@@ -19,7 +15,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  publish-snapshot:
+  build-test-publish:
+    name: Build, Test & Publish Snapshot
     runs-on: ubuntu-latest
     env:
       ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
@@ -30,13 +27,41 @@ jobs:
     steps:
       - name: Checkout PR Branch
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
       - name: Setup JDK 24 for Kotlin 2.2.0
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '24'
           cache: 'gradle'
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
+
+      - name: Build
+        run: ./gradlew clean copyJar --no-daemon --stacktrace
+
+      - name: Test with Kotest
+        run: ./gradlew kotest --stacktrace
+
+      - name: Check if publish paths changed
+        id: changes
+        run: |
+          git fetch origin main
+          if git diff --quiet origin/main...HEAD -- \
+            'modules/**/src/main/**' \
+            'modules/**/build.gradle' \
+            'build.gradle' \
+            'gradle.properties'; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Determine PR Snapshot Version
+        if: steps.changes.outputs.changed == 'true'
         id: versioning
         run: |
           BASE_VERSION=$(grep '^baseVersion=' gradle.properties | cut -d'=' -f2)
@@ -46,11 +71,13 @@ jobs:
           
           echo "snapshot_version=$SNAPSHOT_VERSION" >> $GITHUB_OUTPUT
           echo "Using snapshot version: $SNAPSHOT_VERSION"
-      - name: Grant Execute Permission for Gradlew
-        run: chmod +x gradlew
+
       - name: Publish PR Snapshot to Maven Central
+        if: steps.changes.outputs.changed == 'true'
         run: ./gradlew publishToMavenCentral --stacktrace -Pversion=${{ steps.versioning.outputs.snapshot_version }}
+
       - name: Comment Snapshot Coordinates on PR
+        if: steps.changes.outputs.changed == 'true'
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}

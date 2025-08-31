@@ -39,6 +39,9 @@ jobs:
       - name: Build Artifacts
         run: ./gradlew clean copyJar --no-daemon --stacktrace
 
+      - name: Test with Kotest
+        run: ./gradlew kotest --stacktrace
+
       - name: Publish to Maven Central and GitHub Packages
         run: ./gradlew publishToMavenCentral publishAllPublicationsToGitHubPackagesRepository --stacktrace
 
