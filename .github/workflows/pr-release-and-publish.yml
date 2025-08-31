@@ -110,7 +110,7 @@ jobs:
             kapt "io.github.eventhorizonlab:spi-tooling-processor:${{ steps.versioning.outputs.snapshot_version }}"
             ```
             
-            _This comment will be updated automatically if a new snapshot is published for this PR._
+            _This comment will be updated automatically if a new snapshot is published for this PR_
           edit-mode: replace
           reactions: rocket
           reactions-edit-mode: replace
