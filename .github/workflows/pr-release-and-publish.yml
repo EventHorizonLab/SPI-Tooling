@@ -84,7 +84,7 @@ jobs:
 
       - name: Publish PR Snapshot to Maven Central Snapshot Repo
         if: steps.changes.outputs.changed == 'true'
-        run: ./gradlew publishToMavenCentral -Pversion=${{ steps.versioning.outputs.snapshot_version }} --stracktrace --info
+        run: ./gradlew publishToMavenCentral -Pversion=${{ steps.versioning.outputs.snapshot_version }} --stacktrace --info
 
       - name: Comment Snapshot Coordinates on PR
         if: steps.changes.outputs.changed == 'true'
