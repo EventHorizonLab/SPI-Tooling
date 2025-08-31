@@ -3,7 +3,6 @@ java {
         languageVersion = JavaLanguageVersion.of(24)
     }
     withSourcesJar()
-    withJavadocJar()
 }
 
 kotlin {
