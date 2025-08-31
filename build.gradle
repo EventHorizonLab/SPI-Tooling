@@ -23,9 +23,7 @@ subprojects {
 
     publishing {
         repositories {
-            maven {
-                name = "CentralPortal"
-                url = uri('https://central.sonatype.com/api/v1/publisher')
+            mavenCentral() {
                 credentials {
                     username = findProperty('centralPortalUsername') as String
                     password = findProperty('centralPortalPassword') as String
