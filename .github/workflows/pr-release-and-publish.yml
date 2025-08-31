@@ -56,11 +56,11 @@ jobs:
       - name: Test with Kotest
         run: ./gradlew kotest --stacktrace
 
-      - name: Check if publish paths changed
+      - name: Check if publish paths changed in latest commit
         id: changes
         run: |
-          git fetch origin main
-          if git diff --quiet origin/main...HEAD -- \
+          PREV_COMMIT=$(git rev-parse HEAD^)
+          if git diff --quiet $PREV_COMMIT HEAD -- \
             'modules/**/src/main/**' \
             'modules/**/build.gradle' \
             'build.gradle' \
