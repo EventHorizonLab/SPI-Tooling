@@ -59,8 +59,7 @@ jobs:
       - name: Check if publish paths changed in latest commit
         id: changes
         run: |
-          PREV_COMMIT=$(git rev-parse HEAD^)
-          if git diff --quiet $PREV_COMMIT HEAD -- \
+          if git diff --quiet ${{ github.event.before }} ${{ github.event.after }} -- \
             'modules/**/src/main/**' \
             'modules/**/build.gradle' \
             'build.gradle' \
@@ -69,6 +68,7 @@ jobs:
           else
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
+
 
       - name: Determine PR Snapshot Version
         if: steps.changes.outputs.changed == 'true'
@@ -104,6 +104,8 @@ jobs:
             🆕 **PR Snapshot Published to Maven Central Snapshot Repository**
             
             You can test this PR build by adding the following dependencies:
+            
+            Version: `${{ steps.versioning.outputs.snapshot_version }}`
             
             ```gradle
             implementation "io.github.eventhorizonlab:spi-tooling-annotations:${{ steps.versioning.outputs.snapshot_version }}"
