@@ -23,8 +23,44 @@ class ServiceSchemeProcessorSpec : FunSpec({
         this.classpaths = classpaths
     }.compile()
 
+    test("generates correct META-INF/services for nested provider") {
+        val api = SourceFile.kotlin(
+            "Api.kt",
+            """
+            package my.api
+            import com.github.eventhorizonlab.spi.ServiceContract
+            interface Outer {
+                @ServiceContract
+                interface Inner
+            }
+            """.trimIndent()
+        )
+
+        val impl = SourceFile.kotlin(
+            "Impl.kt",
+            """
+            package my.impl
+            import my.api.Outer
+            import my.api.Outer.Inner
+            import com.github.eventhorizonlab.spi.ServiceProvider
+            class Impl {
+              @ServiceProvider(Inner::class)
+              class ImplInner : Inner
+            }
+            """.trimIndent()
+        )
+
+        val apiResult = compile(listOf(api), runProcessor = false)
+        apiResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
+
+        val implResult = compile(listOf(impl), listOf(apiResult.outputDirectory))
+        implResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
+
+        implResult.classLoader.readServiceFile("my.api.Outer\$Inner")?.trim() shouldBe "my.impl.Impl\$ImplInner"
+    }
+
     test("generates META-INF/services for cross-module provider") {
-        var api = SourceFile.kotlin(
+        val api = SourceFile.kotlin(
             "Api.kt",
             """
             package my.api
@@ -94,6 +130,7 @@ class ServiceSchemeProcessorSpec : FunSpec({
         result.exitCode shouldBe KotlinCompilation.ExitCode.COMPILATION_ERROR
         result.messages shouldContain "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract"
     }
+
 
     test("writes all providers for a contract into META-INF/services") {
         val api = SourceFile.kotlin(
