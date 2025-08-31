@@ -1,0 +1,45 @@
+plugins {
+    id 'base'
+}
+
+subprojects {
+    repositories {
+        mavenCentral()
+    }
+
+    if (it.plugins.hasPlugin('java-library') || it.plugins.hasPlugin('org.jetbrains.kotlin.jvm')) {
+        it.apply plugin: 'maven-publish'
+
+        it.publishing {
+            publications {
+                create('maven', MavenPublication) {
+                    from components.java
+                    artifactId = "${rootProject.name}-${project.name}"
+                    groupId = rootProject.group as String
+                    version = rootProject.version as String
+                }
+            }
+        }
+    }
+}
+
+allprojects {
+    group = findProperty('group')
+    version = "${findProperty('baseVersion')}-SNAPSHOT"
+}
+
+tasks.register('copyJar', Copy) {
+    description = 'Collects all subproject jars into the root build/ directory'
+    group = 'build'
+
+    // Make sure subproject jars are built first
+    dependsOn subprojects.collect { it.tasks.matching { it.name == 'jar' } }
+
+    // Copy from each subproject's jar output
+    from subprojects.collect { proj ->
+        proj.tasks.named('jar').flatMap { it.archiveFile }
+    }
+
+    into layout.buildDirectory.dir('libs')
+}
+
