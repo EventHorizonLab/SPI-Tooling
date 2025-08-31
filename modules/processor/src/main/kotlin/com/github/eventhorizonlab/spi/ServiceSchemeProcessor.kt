@@ -118,4 +118,4 @@ class ServiceSchemeProcessor : AbstractProcessor() {
     }
 }
 
-internal fun missingServiceProviderErrorMessage(contract: String): String = "No @ServiceProvider found for contract $contract"
+internal fun missingServiceProviderErrorMessage(contract: String) = "No @ServiceProvider found for contract $contract"
