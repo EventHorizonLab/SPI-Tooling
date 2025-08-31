@@ -1,5 +1,7 @@
 plugins {
     id 'base'
+    id 'org.jetbrains.kotlin.jvm' version '2.2.0'
+    id 'org.jetbrains.kotlin.kapt' version '2.2.0'
 }
 
 allprojects {
@@ -13,6 +15,8 @@ allprojects {
 subprojects {
     apply plugin: 'java-library'
     apply plugin: 'maven-publish'
+    apply plugin: 'org.jetbrains.kotlin.jvm'
+    apply plugin: 'org.jetbrains.kotlin.kapt'
 
     def projName = project.name
 
