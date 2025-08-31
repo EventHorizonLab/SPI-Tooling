@@ -1,0 +1,14 @@
+name: Test Coverage Request
+description: Request new or improved tests.
+title: "test: "
+labels: ["type: test", "status: needs triage"]
+body:
+  - type: textarea
+    attributes:
+      label: What area needs tests?
+      placeholder: e.g., compile testing for Java
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Why is this important?
