@@ -178,4 +178,8 @@ class ServiceSchemeProcessorSpec : FunSpec({
         lines shouldBe listOf("my.impl.Impl1", "my.impl.Impl2")
     }
 
+    test("generates correct META-INF with Java source and Kotlin impl") {
+
+    }
+
 })
