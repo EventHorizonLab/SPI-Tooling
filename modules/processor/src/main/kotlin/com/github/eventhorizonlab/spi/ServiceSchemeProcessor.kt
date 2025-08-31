@@ -6,7 +6,7 @@ import javax.lang.model.SourceVersion
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
 import javax.lang.model.type.DeclaredType
-import javax.lang.model.type.MirroredTypeException
+import javax.lang.model.type.MirroredTypesException
 import javax.tools.Diagnostic
 import javax.tools.StandardLocation
 
@@ -41,18 +41,21 @@ class ServiceSchemeProcessor : AbstractProcessor() {
 
         // 2) Collect providers
         roundEnv.getElementsAnnotatedWith(ServiceProvider::class.java).forEach { element ->
-            val contractElement = try {
-                (element.getAnnotation(ServiceProvider::class.java).value as? TypeElement)
-                    ?: throw IllegalStateException()
-            } catch (mte: MirroredTypeException) {
-                (mte.typeMirror as DeclaredType).asElement() as TypeElement
+            element.getAnnotationsByType(ServiceProvider::class.java).forEach { ann ->
+                try {
+                    // This will throw MirroredTypesException at compile time
+                    ann.value.forEach { kClass ->
+                        val contractElement = kClass as? TypeElement
+                            ?: throw IllegalStateException("Unexpected KClass type")
+                        addProvider(element as TypeElement, contractElement)
+                    }
+                } catch (mte: MirroredTypesException) {
+                    mte.typeMirrors.forEach { tm ->
+                        val contractElement = (tm as DeclaredType).asElement() as TypeElement
+                        addProvider(element as TypeElement, contractElement)
+                    }
+                }
             }
-
-            val contractCanonical = contractElement.qualifiedName.toString()
-            val contractBinary = processingEnv.elementUtils.getBinaryName(contractElement).toString()
-            val providerBinary = processingEnv.elementUtils.getBinaryName(element as TypeElement).toString()
-
-            providers += ProviderInfo(contractCanonical, contractBinary, providerBinary)
         }
 
         // 3) On final round, generate files + validate
@@ -115,6 +118,14 @@ class ServiceSchemeProcessor : AbstractProcessor() {
             .use { writer ->
                 impls.forEach { writer.write("$it\n") }
             }
+    }
+
+    private fun addProvider(providerElement: TypeElement, contractElement: TypeElement) {
+        val contractCanonical = contractElement.qualifiedName.toString()
+        val contractBinary = processingEnv.elementUtils.getBinaryName(contractElement).toString()
+        val providerBinary = processingEnv.elementUtils.getBinaryName(providerElement).toString()
+
+        providers += ProviderInfo(contractCanonical, contractBinary, providerBinary)
     }
 }
 
