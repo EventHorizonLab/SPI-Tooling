@@ -19,7 +19,7 @@ jobs:
           echo "PR_VERSION=$PR_VERSION" >> $GITHUB_OUTPUT
       - name: Verify in SemVer format
         run: |
-          if ! [[ "${{ steps.pr_version.outputs.PR_VERSION }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+          if ! [[ "${{ steps.pr_version.outputs.PR_VERSION }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
               echo "Error: Version '${{ steps.pr_version.outputs.PR_VERSION }}' is not in valid SemVer format."
               exit 1
           fi
