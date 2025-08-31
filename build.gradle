@@ -52,6 +52,28 @@ subprojects {
             }
         }
     }
+
+    tasks.withType(PublishToMavenRepository).configureEach {
+        doLast {
+            def pub = it.publication
+            if (pub instanceof MavenPublication) {
+                def coords = "${pub.groupId}:${pub.artifactId}:${pub.version}"
+                println ""
+                println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                println "📦 Published to Remote Repository"
+                println "   Coordinates : $coords"
+                println "   Repository  : ${it.repository.url}"
+                println "   Artifacts   :"
+                pub.artifacts.each { art ->
+                    println "      • ${art.file.name}  →  ${art.file}"
+                }
+                println "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                println ""
+            } else {
+                println "⚠️  Task ${it.path} did not publish a MavenPublication"
+            }
+        }
+    }
 }
 
 tasks.register('copyJar', Copy) {
