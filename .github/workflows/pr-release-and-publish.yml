@@ -67,14 +67,16 @@ jobs:
           BASE_VERSION=$(grep '^baseVersion=' gradle.properties | cut -d'=' -f2)
           PR_NUMBER=${{ github.event.pull_request.number }}
           INCREMENT=$(date +%s)
-          SNAPSHOT_VERSION="${BASE_VERSION}-SNAPSHOT-${PR_NUMBER}-${INCREMENT}"
+          SNAPSHOT_VERSION="${BASE_VERSION}-${PR_NUMBER}-${INCREMENT}-SNAPSHOT"
           
           echo "snapshot_version=$SNAPSHOT_VERSION" >> $GITHUB_OUTPUT
           echo "Using snapshot version: $SNAPSHOT_VERSION"
 
-      - name: Publish PR Snapshot to Maven Central
+      - name: Publish PR Snapshot to Maven Central Snapshot Repo
         if: steps.changes.outputs.changed == 'true'
-        run: ./gradlew publishToMavenCentral --stacktrace -Pversion=${{ steps.versioning.outputs.snapshot_version }}
+        run: ./gradlew publishAllPublicationsToMavenCentralSnapshotRepository \
+          --stacktrace \
+          -Pversion=${{ steps.versioning.outputs.snapshot_version }}
 
       - name: Comment Snapshot Coordinates on PR
         if: steps.changes.outputs.changed == 'true'
@@ -82,14 +84,14 @@ jobs:
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            🆕 **PR Snapshot Published to Maven Central**
-
+            🆕 **PR Snapshot Published to Maven Central Snapshot Repository**
+            
             You can test this PR build by adding the following dependencies:
-
+            
             ```gradle
             implementation "io.github.eventhorizonlab:spi-tooling-annotations:${{ steps.versioning.outputs.snapshot_version }}"
             kapt "io.github.eventhorizonlab:spi-tooling-processor:${{ steps.versioning.outputs.snapshot_version }}"
             ```
-
+            
             _This comment will be updated automatically if a new snapshot is published for this PR._
           edit-mode: replace
