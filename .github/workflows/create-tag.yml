@@ -1,4 +1,4 @@
-name: Create Tag
+name: Create Tag, Release & Publish
 on:
   push:
     branches:
@@ -35,4 +35,9 @@ jobs:
               sha: context.sha
             });
             core.info(`Created tag ${tag} at ${context.sha}`);
+      
             
+
+  call-release:
+    uses: ./.github/workflows/release-and-publish.yml
+    secrets: inherit
