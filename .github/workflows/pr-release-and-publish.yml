@@ -88,6 +88,7 @@ jobs:
 
       - name: Find Comment
         uses: peter-evans/find-comment@v3
+        if: steps.changes.outputs.changed == 'true'
         id: find-comment
         with:
           issue-number: ${{ github.event.pull_request.number }}
