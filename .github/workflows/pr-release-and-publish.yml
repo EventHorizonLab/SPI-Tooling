@@ -84,7 +84,7 @@ jobs:
 
       - name: Publish PR Snapshot to Maven Central Snapshot Repo
         if: steps.changes.outputs.changed == 'true'
-        run: ./gradlew publishAllPublicationsToMavenCentralSnapshotRepository \
+        run: ./gradlew publishToMavenCentral \
           --stacktrace \
           -Pversion=${{ steps.versioning.outputs.snapshot_version }}
 
