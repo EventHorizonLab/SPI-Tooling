@@ -25,6 +25,8 @@ jobs:
       ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 
     steps:
+      - name: Verify SemVer Version
+        uses: ./.github/workflows/verify-version.yml
       - name: Checkout PR Branch
         uses: actions/checkout@v5
         with:
