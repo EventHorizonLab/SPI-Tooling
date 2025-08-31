@@ -7,7 +7,11 @@ plugins {
 
 allprojects {
     group = findProperty('group') as String
-    version = findProperty('version') ?: findProperty('baseVersion')
+    if (hasProperty("version")) {
+        version = findProperty('version') as String
+    } else {
+        version = findProperty('baseVersion') as String
+    }
     repositories {
         mavenCentral()
     }
