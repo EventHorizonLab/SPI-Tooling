@@ -1,12 +1,15 @@
 package com.github.eventhorizonlab.spi
 
 import com.google.auto.service.AutoService
+import java.lang.annotation.Repeatable
 import javax.annotation.processing.*
 import javax.lang.model.SourceVersion
+import javax.lang.model.element.AnnotationMirror
+import javax.lang.model.element.AnnotationValue
 import javax.lang.model.element.ElementKind
 import javax.lang.model.element.TypeElement
 import javax.lang.model.type.DeclaredType
-import javax.lang.model.type.MirroredTypesException
+import javax.lang.model.type.TypeMirror
 import javax.tools.Diagnostic
 import javax.tools.StandardLocation
 
@@ -35,19 +38,21 @@ class ServiceSchemeProcessor : AbstractProcessor() {
 
         // 2) Collect providers
         roundEnv.getElementsAnnotatedWith(ServiceProvider::class.java).forEach { element ->
-            element.getAnnotationsByType(ServiceProvider::class.java).forEach { ann ->
-                try {
-                    // This will throw MirroredTypesException at compile time
-                    ann.value.forEach { kClass ->
-                        val contractElement =
-                            kClass as? TypeElement ?: throw IllegalStateException("Unexpected KClass type")
-                        addProvider(element as TypeElement, contractElement)
-                    }
-                } catch (mte: MirroredTypesException) {
-                    mte.typeMirrors.forEach { tm ->
-                        val contractElement = (tm as DeclaredType).asElement() as TypeElement
-                        addProvider(element as TypeElement, contractElement)
-                    }
+            // 1) Collect all ServiceProvider mirrors (direct + from container if repeatable)
+            val spMirrors = collectServiceProviderMirrors(element, processingEnv)
+
+            // 2) For each ServiceProvider mirror, read its "value" (array of class literals)
+            spMirrors.forEach { spMirror ->
+                val valuesWithDefaults = processingEnv.elementUtils.getElementValuesWithDefaults(spMirror)
+                val valueAv =
+                    valuesWithDefaults.entries.firstOrNull { it.key.simpleName.contentEquals("value") }?.value ?: error(
+                        "@ServiceProvider missing 'value' on ${element.simpleName}"
+                    )
+
+                val typeMirrors = classArrayAnnotationValues(valueAv, processingEnv)
+                typeMirrors.forEach { tm ->
+                    val contractElement = (tm as DeclaredType).asElement() as TypeElement
+                    addProvider(element as TypeElement, contractElement)
                 }
             }
         }
@@ -63,8 +68,8 @@ class ServiceSchemeProcessor : AbstractProcessor() {
 
     private fun generateServiceFiles() {
         providers.groupBy { it.contractBinary }.forEach { (contractBinary, infos) ->
-                writeServiceFile(contractBinary, infos.map { it.providerBinary }.distinct().sorted())
-            }
+            writeServiceFile(contractBinary, infos.map { it.providerBinary }.distinct().sorted())
+        }
 
         // Flag contracts declared here with no providers
         contracts.filter { canonical ->
@@ -116,6 +121,71 @@ class ServiceSchemeProcessor : AbstractProcessor() {
 
         providers += ProviderInfo(contractCanonical, contractBinary, providerBinary)
     }
+
+
+    /**
+     * Returns all @ServiceProvider annotation mirrors on the element, expanding a repeatable
+     * container if present, using only javax.lang.model APIs.
+     */
+    private fun collectServiceProviderMirrors(
+        element: javax.lang.model.element.Element, processingEnv: ProcessingEnvironment
+    ): List<AnnotationMirror> {
+        val spName = ServiceProvider::class.java.canonicalName
+        val spType = processingEnv.elementUtils.getTypeElement(spName) ?: return emptyList()
+
+        // Find container type from @Repeatable, if any
+        val containerName = spType.annotationMirrors.firstNotNullOfOrNull { am ->
+            val annType = (am.annotationType.asElement() as TypeElement).qualifiedName.toString()
+            if (annType == Repeatable::class.java.canonicalName) {
+                // @Repeatable(value = Container.class)
+                val values = processingEnv.elementUtils.getElementValuesWithDefaults(am)
+                val repeatableValueAv = values.entries.first { it.key.simpleName.contentEquals("value") }.value
+                val containerTm = repeatableValueAv.value as TypeMirror
+                ((containerTm as DeclaredType).asElement() as TypeElement).qualifiedName.toString()
+            } else null
+        }
+
+        val direct = element.annotationMirrors.filter { m ->
+            ((m.annotationType.asElement() as TypeElement).qualifiedName.toString() == spName)
+        }
+
+        val expandedFromContainer = if (containerName != null) {
+            element.annotationMirrors.filter { (it.annotationType.asElement() as TypeElement).qualifiedName.toString() == containerName }
+                .flatMap { containerMirror ->
+                    // Container has a "value" which is an array of nested @ServiceProvider annotations
+                    val values = processingEnv.elementUtils.getElementValuesWithDefaults(containerMirror)
+                    val valueAv = values.entries.firstOrNull { it.key.simpleName.contentEquals("value") }?.value
+                        ?: return@flatMap emptyList()
+                    val arr = valueAv.value as List<*>
+                    arr.filterIsInstance<AnnotationValue>().mapNotNull { it.value as? AnnotationMirror }
+                }
+        } else emptyList()
+
+        return direct + expandedFromContainer
+    }
+
+    private fun toTypeMirror(raw: Any?, processingEnv: ProcessingEnvironment): TypeMirror? = when (raw) {
+        null -> null
+        is TypeMirror -> raw
+        is AnnotationValue -> toTypeMirror(raw.value, processingEnv)
+        is String -> processingEnv.elementUtils.getTypeElement(raw)?.asType()
+        else -> null
+    }
+
+    /**
+     * Converts the "value" of a class[] annotation member into a List<TypeMirror>,
+     * handling both array and single-class forms.
+     */
+    private fun classArrayAnnotationValues(
+        valueAv: AnnotationValue,
+        processingEnv: ProcessingEnvironment
+    ): List<TypeMirror> {
+        return when (val raw = valueAv.value) {
+            is List<*> -> raw.mapNotNull { toTypeMirror(it, processingEnv) }
+            else -> listOfNotNull(toTypeMirror(raw, processingEnv))
+        }
+    }
+
 }
 
 internal fun missingServiceProviderErrorMessage(contract: String) = "No @ServiceProvider found for contract $contract"

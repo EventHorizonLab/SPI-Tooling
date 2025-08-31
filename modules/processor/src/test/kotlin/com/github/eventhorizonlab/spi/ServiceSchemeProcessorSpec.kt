@@ -318,6 +318,94 @@ class ServiceSchemeProcessorSpec : FunSpec({
                         """.trimIndent()
                     )
                 ), contractFqcn = listOf("my.api.Api", "my.api.Api2"), expectedImpls = listOf("my.impl.Impl")
+            ), ServiceCase(
+                "Java generic API with Kotlin provider (type erasure check)", api = listOf(
+                    SourceFile.java(
+                        "Api.java", """
+                        package my.api;
+                        import com.github.eventhorizonlab.spi.ServiceContract;
+                        
+                        @ServiceContract
+                        public interface Api<T> {}
+                    """.trimIndent()
+                    )
+                ), impls = listOf(
+                    SourceFile.kotlin(
+                        "Impl.kt", """
+                        package my.impl
+                        import my.api.Api
+                        import com.github.eventhorizonlab.spi.ServiceProvider
+                        
+                        @ServiceProvider(Api::class)
+                        class Impl : Api<String>
+                    """.trimIndent()
+                    )
+                ), contractFqcn = listOf("my.api.Api"), expectedImpls = listOf("my.impl.Impl")
+            ), ServiceCase(
+                "Kotlin generic API with Java provider (type erasure check)", api = listOf(
+                    SourceFile.kotlin(
+                        "Api.kt", """
+                        package my.api
+                        import com.github.eventhorizonlab.spi.ServiceContract
+                        @ServiceContract
+                        interface Api<T>
+                        """.trimIndent()
+                    )
+                ), impls = listOf(
+                    SourceFile.java(
+                        "Impl.java", """
+                        package my.impl;
+                        import my.api.Api;
+                        import com.github.eventhorizonlab.spi.ServiceProvider;
+                        @ServiceProvider(Api.class)
+                        public class Impl implements Api<String> {}
+                        """.trimIndent()
+                    )
+                ), contractFqcn = listOf("my.api.Api"), expectedImpls = listOf("my.impl.Impl")
+            ), ServiceCase(
+                "Kotlin API with generic provider (type erasure check)", api = listOf(
+                    SourceFile.kotlin(
+                        "Api.kt", """
+                        package my.api
+                        import com.github.eventhorizonlab.spi.ServiceContract
+                        @ServiceContract
+                        interface Api<T>
+                        """.trimIndent()
+                    )
+                ), impls = listOf(
+                    SourceFile.kotlin(
+                        "Impl.kt", """
+                        package my.impl
+                        import my.api.Api
+                        import com.github.eventhorizonlab.spi.ServiceProvider
+                        @ServiceProvider(Api::class)
+                        class Impl : Api<String>
+                        """.trimIndent()
+                    )
+                ), contractFqcn = listOf("my.api.Api"), expectedImpls = listOf("my.impl.Impl")
+            ), ServiceCase(
+                "Java API with generic provider (type erasure check)", api = listOf(
+                    SourceFile.java(
+                        "Api.java", """
+                        package my.api;
+                        import com.github.eventhorizonlab.spi.ServiceContract;
+                        @ServiceContract
+                        public interface Api<T> {}
+                        """.trimIndent()
+                    )
+                ),
+                impls = listOf(
+                    SourceFile.java(
+                        "Impl.java", """
+                        package my.impl;
+                        import my.api.Api;
+                        import com.github.eventhorizonlab.spi.ServiceProvider;
+                        @ServiceProvider(Api.class)
+                        public class Impl implements Api<String> {}
+                        """.trimIndent()
+                    )
+                ),
+                contractFqcn = listOf("my.api.Api"), expectedImpls = listOf("my.impl.Impl")
             )
         ) { case ->
             val apiResult = compileApi(*case.api.toTypedArray())
