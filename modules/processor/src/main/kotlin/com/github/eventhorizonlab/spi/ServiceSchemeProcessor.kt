@@ -11,9 +11,7 @@ import javax.tools.Diagnostic
 import javax.tools.StandardLocation
 
 private data class ProviderInfo(
-    val contractCanonical: String,
-    val contractBinary: String,
-    val providerBinary: String
+    val contractCanonical: String, val contractBinary: String, val providerBinary: String
 )
 
 @SupportedOptions("org.gradle.annotation.processing.aggregating")
@@ -22,22 +20,18 @@ private data class ProviderInfo(
 class ServiceSchemeProcessor : AbstractProcessor() {
 
     override fun getSupportedAnnotationTypes() = setOf(
-        ServiceProvider::class.java.canonicalName,
-        ServiceContract::class.java.canonicalName
+        ServiceProvider::class.java.canonicalName, ServiceContract::class.java.canonicalName
     )
 
     private val contracts = mutableSetOf<String>() // canonical names
     private val providers = mutableListOf<ProviderInfo>()
 
     override fun process(
-        annotations: MutableSet<out TypeElement>,
-        roundEnv: RoundEnvironment
+        annotations: MutableSet<out TypeElement>, roundEnv: RoundEnvironment
     ): Boolean {
         // 1) Collect contracts defined in this compilation
-        roundEnv.getElementsAnnotatedWith(ServiceContract::class.java)
-            .filter { it.kind == ElementKind.INTERFACE }
-            .map { (it as TypeElement).qualifiedName.toString() }
-            .forEach { contracts += it }
+        roundEnv.getElementsAnnotatedWith(ServiceContract::class.java).filter { it.kind == ElementKind.INTERFACE }
+            .map { (it as TypeElement).qualifiedName.toString() }.forEach { contracts += it }
 
         // 2) Collect providers
         roundEnv.getElementsAnnotatedWith(ServiceProvider::class.java).forEach { element ->
@@ -45,8 +39,8 @@ class ServiceSchemeProcessor : AbstractProcessor() {
                 try {
                     // This will throw MirroredTypesException at compile time
                     ann.value.forEach { kClass ->
-                        val contractElement = kClass as? TypeElement
-                            ?: throw IllegalStateException("Unexpected KClass type")
+                        val contractElement =
+                            kClass as? TypeElement ?: throw IllegalStateException("Unexpected KClass type")
                         addProvider(element as TypeElement, contractElement)
                     }
                 } catch (mte: MirroredTypesException) {
@@ -68,8 +62,7 @@ class ServiceSchemeProcessor : AbstractProcessor() {
     }
 
     private fun generateServiceFiles() {
-        providers.groupBy { it.contractBinary }
-            .forEach { (contractBinary, infos) ->
+        providers.groupBy { it.contractBinary }.forEach { (contractBinary, infos) ->
                 writeServiceFile(contractBinary, infos.map { it.providerBinary }.distinct().sorted())
             }
 
@@ -78,8 +71,7 @@ class ServiceSchemeProcessor : AbstractProcessor() {
             providers.none { it.contractCanonical == canonical }
         }.forEach { contract ->
             processingEnv.messager.printMessage(
-                Diagnostic.Kind.ERROR,
-                missingServiceProviderErrorMessage(contract)
+                Diagnostic.Kind.ERROR, missingServiceProviderErrorMessage(contract)
             )
         }
     }
@@ -88,8 +80,7 @@ class ServiceSchemeProcessor : AbstractProcessor() {
         providers.map { it.contractCanonical }.distinct().forEach { canonicalName ->
             val contractElement = processingEnv.elementUtils.getTypeElement(canonicalName)
             val hasAnnotation = contractElement?.annotationMirrors?.any {
-                val annType = (it.annotationType.asElement() as TypeElement)
-                    .qualifiedName.toString()
+                val annType = (it.annotationType.asElement() as TypeElement).qualifiedName.toString()
                 annType == ServiceContract::class.java.canonicalName
             } ?: false
 
@@ -112,10 +103,8 @@ class ServiceSchemeProcessor : AbstractProcessor() {
             Diagnostic.Kind.NOTE,
             "Writing META-INF/services/$contractBinary with ${impls.size} implementation(s): ${impls.joinToString()}"
         )
-        processingEnv.filer
-            .createResource(StandardLocation.CLASS_OUTPUT, "", "META-INF/services/$contractBinary")
-            .openWriter()
-            .use { writer ->
+        processingEnv.filer.createResource(StandardLocation.CLASS_OUTPUT, "", "META-INF/services/$contractBinary")
+            .openWriter().use { writer ->
                 impls.forEach { writer.write("$it\n") }
             }
     }
