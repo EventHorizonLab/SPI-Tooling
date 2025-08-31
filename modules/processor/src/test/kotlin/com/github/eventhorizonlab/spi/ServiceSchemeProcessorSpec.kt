@@ -179,7 +179,34 @@ class ServiceSchemeProcessorSpec : FunSpec({
     }
 
     test("generates correct META-INF with Java source and Kotlin impl") {
+        val api = SourceFile.java(
+            "Api.java",
+            """
+            package my.api;
+            import com.github.eventhorizonlab.spi.ServiceContract;
+            @ServiceContract
+            public interface Api {}
+            """.trimIndent()
+        )
 
+        val impl = SourceFile.kotlin(
+            "Impl.kt",
+            """
+            package my.impl
+            import my.api.Api
+            import com.github.eventhorizonlab.spi.ServiceProvider
+            @ServiceProvider(Api::class)
+            class Impl : Api
+            """.trimIndent()
+        )
+
+        val apiResult = compile(listOf(api), runProcessor = false)
+        apiResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
+
+        val implResult = compile(listOf(impl), listOf(apiResult.outputDirectory))
+        implResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
+
+        implResult.classLoader.readServiceFile("my.api.Api")?.trim() shouldBe "my.impl.Impl"
     }
 
 })
