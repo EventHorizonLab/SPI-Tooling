@@ -52,5 +52,5 @@ jobs:
       tag_name: "v${{ needs.tag.outputs.version }}"
     secrets: inherit
     permissions:
-      contents: read
+      contents: write
       packages: write
