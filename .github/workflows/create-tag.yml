@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 concurrency:
   group: release
@@ -50,3 +51,6 @@ jobs:
     with:
       tag_name: "v${{ needs.tag.outputs.version }}"
     secrets: inherit
+    permissions:
+      contents: read
+      packages: write
