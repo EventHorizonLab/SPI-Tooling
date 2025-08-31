@@ -22,39 +22,39 @@ subprojects {
     // Configure Vanniktech plugin
     mavenPublishing {
         // Central Portal publishing
-        publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+        publishToMavenCentral(true)
 
         // Sign all publications with in‑memory keys
         signAllPublications()
 
         // Optional: override artifactId per module
         coordinates(
-                groupId = rootProject.group as String,
-                artifactId = "${rootProject.name}-${project.name}",
-                version = rootProject.version as String
+                rootProject.group as String,
+                "${rootProject.name}-${project.name}",
+                rootProject.version as String
         )
 
         pom {
-            name.set("${rootProject.name}-${project.name}")
-            description.set("A module of the ${rootProject.name} project.")
-            url.set("https://github.com/EventHorizonLab/SPI-Tooling")
+            name = "${rootProject.name}-${project.name}"
+            description = "A module of the ${rootProject.name} project."
+            url = "https://github.com/EventHorizonLab/SPI-Tooling"
             licenses {
                 license {
-                    name.set("MIT License")
-                    url.set("https://opensource.org/license/mit")
+                    name = "MIT License"
+                    url = "https://opensource.org/license/mit"
                 }
             }
             developers {
                 developer {
-                    id.set("eventhorizonlab")
-                    name.set("EventHorizonLab")
-                    url.set("https://github.com/EventHorizonLab")
+                    id = "eventhorizonlab"
+                    name = "EventHorizonLab"
+                    url = "https://github.com/EventHorizonLab"
                 }
             }
             scm {
-                url.set("https://github.com/EventHorizonLab/spi-tooling")
-                connection.set("scm:git:https://github.com/EventHorizonLab/spi-tooling.git")
-                developerConnection.set("scm:git:ssh://git@github.com:EventHorizonLab/spi-tooling.git")
+                url = "https://github.com/EventHorizonLab/SPI-Tooling"
+                connection = "scm:git:https://github.com/EventHorizonLab/SPI-Tooling.git"
+                developerConnection = "scm:git:ssh://git@github.com:EventHorizonLab/SPI-Tooling.git"
             }
         }
     }
