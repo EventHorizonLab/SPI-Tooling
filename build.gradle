@@ -17,17 +17,73 @@ subprojects {
     apply plugin: 'maven-publish'
     apply plugin: 'org.jetbrains.kotlin.jvm'
     apply plugin: 'org.jetbrains.kotlin.kapt'
+    apply plugin: 'signing'
 
     def projName = project.name
 
     publishing {
+        repositories {
+            maven {
+                name = "CentralPortal"
+                url = uri('https://central.sonatype.com/api/v1/publisher/upload')
+                credentials {
+                    username = findProperty('ossrhUsername') as String
+                    password = findProperty('ossrhPassword') as String
+                }
+            }
+
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/EventHorizonLab/SPI-Tooling")
+                credentials {
+                    username = findProperty('gprUser') ?: System.getenv('GITHUB_ACTOR')
+                    password = findProperty('gprToken') ?: System.getenv('GITHUB_TOKEN')
+                }
+            }
+        }
+
         publications {
             create('maven', MavenPublication) {
                 from components.java
                 artifactId = "${rootProject.name}-${projName}"
                 groupId = rootProject.group as String
                 version = rootProject.version as String
+                pom {
+                    name = artifactId
+                    description = "A module of the ${rootProject.name} project."
+                    url = 'https://github.com/EventHorizonLab/SPI-Tooling'
+                    licenses {
+                        license {
+                            name = 'MIT License'
+                            url = 'https://opensource.org/license/mit'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'eventhorizonlab'
+                            name = 'EventHorizonLab'
+                            url = 'https://github.com/EventHorizonLab'
+                        }
+                    }
+                    scm {
+                        url = 'https://github.com/EventHorizonLab/spi-tooling'
+                        connection = 'scm:git:https://github.com/EventHorizonLab/spi-tooling.git'
+                        developerConnection = 'scm:git:ssh://git@github.com:EventHorizonLab/spi-tooling.git'
+                    }
+                }
             }
+        }
+    }
+
+    signing {
+        def signingKey = findProperty('signingKey') as String
+        def signingPassword = findProperty('signingPassword') as String
+
+        if (signingKey && signingPassword) {
+            useInMemoryPgpKeys(signingKey, signingPassword)
+            sign publishing.publications.maven
+        } else {
+            println "⚠️  Signing key or password not found. Skipping signing for project $projName."
         }
     }
 
@@ -52,6 +108,8 @@ subprojects {
             }
         }
     }
+
+    // "3W@w[`rzTvh_1>-~N_{=z{$W#s@-c
 
     tasks.withType(PublishToMavenRepository).configureEach {
         doLast {
