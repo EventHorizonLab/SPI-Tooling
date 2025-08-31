@@ -5,10 +5,13 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.datatest.withData
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import java.io.File
+import java.net.URLClassLoader
+import java.util.ServiceLoader
 
 @OptIn(ExperimentalCompilerApi::class)
 class ServiceSchemeProcessorSpec : FunSpec({
@@ -588,6 +591,56 @@ class ServiceSchemeProcessorSpec : FunSpec({
             val result = compile(case.sources)
             result.exitCode shouldBe KotlinCompilation.ExitCode.COMPILATION_ERROR
             result.messages shouldContain case.expectedMessage
+        }
+    }
+
+    context("ServiceLoader integration") {
+        test("loads provider at runtime") {
+            val apiResult = compileApi(
+                SourceFile.kotlin(
+                    "Api.kt", """
+                    package my.api
+                    import com.github.eventhorizonlab.spi.ServiceContract
+                    @ServiceContract
+                    interface GreetingService {
+                      fun greet(): String
+                    }
+                    """.trimIndent()
+                )
+            )
+
+            val implResult = compileImpl(
+                apiResult, SourceFile.kotlin(
+                    "Impl.kt", """
+                    package my.impl
+                    import my.api.GreetingService
+                    import com.github.eventhorizonlab.spi.ServiceProvider
+                    @ServiceProvider(GreetingService::class)
+                    class Impl : GreetingService {
+                      override fun greet() = "Hello, world!"
+                    }
+                    """.trimIndent()
+                )
+            )
+
+            implResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
+
+            val urls = listOf(apiResult.outputDirectory, implResult.outputDirectory)
+                .map { it.toURI().toURL() }
+                .toTypedArray()
+            val cl = URLClassLoader(urls, null)
+
+            val contractClass = cl.loadClass("my.api.GreetingService")
+            val loader = ServiceLoader.load(contractClass, cl)
+
+            val implNames = loader.iterator().asSequence().map { it.javaClass.name }.toList()
+
+            implNames shouldContainExactly listOf("my.impl.Impl")
+
+            val impl = loader.first()
+            val implMethod = contractClass.methods.first { it.name == "greet" }
+            val result = implMethod.invoke(impl) as String
+            result shouldBe "Hello, world!"
         }
     }
 })
