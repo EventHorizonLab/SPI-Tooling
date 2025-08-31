@@ -46,4 +46,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to Maven Central and GitHub Packages
-        run: ./gradlew publishAllPublicationsToCentralPortalRepository publishAllPublicationsToGitHubPackagesRepository --stacktrace
+        run: ./gradlew publishToMavenCentral publishAllPublicationsToGitHubPackagesRepository --stacktrace
