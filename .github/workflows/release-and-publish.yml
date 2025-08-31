@@ -1,9 +1,7 @@
 name: Release and Publish
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_call:
 
 jobs:
   release-and-publish:
