@@ -1,5 +1,6 @@
 package com.github.eventhorizonlab.spi
 
+import com.github.eventhorizonlab.spi.extensions.getStringifiedBinaryName
 import com.google.auto.service.AutoService
 import java.lang.annotation.Repeatable
 import javax.annotation.processing.*
@@ -116,8 +117,8 @@ class ServiceSchemeProcessor : AbstractProcessor() {
 
     private fun addProvider(providerElement: TypeElement, contractElement: TypeElement) {
         val contractCanonical = contractElement.qualifiedName.toString()
-        val contractBinary = processingEnv.elementUtils.getBinaryName(contractElement).toString()
-        val providerBinary = processingEnv.elementUtils.getBinaryName(providerElement).toString()
+        val contractBinary = processingEnv.getStringifiedBinaryName(contractElement)
+        val providerBinary = processingEnv.getStringifiedBinaryName(providerElement)
 
         providers += ProviderInfo(contractCanonical, contractBinary, providerBinary)
     }
