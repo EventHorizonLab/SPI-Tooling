@@ -9,7 +9,9 @@ import kotlin.reflect.KClass
 @MustBeDocumented
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class ServiceProvider(vararg val value: KClass<*>)
+annotation class ServiceProvider(
+    vararg val value: KClass<*>,
+)
 
 /**
  * Marks an interface as a ServiceLoader contract.
