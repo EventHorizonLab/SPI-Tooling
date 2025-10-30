@@ -96,42 +96,37 @@ class ServiceSchemeProcessor : AbstractProcessor() {
         val contractTypes = contracts.mapNotNull { processingEnv.elementUtils.getTypeElement(it) }
         val contractTypeMirrors = contractTypes.map { it.asType() }.toSet()
 
-        val contractsWithProviders = providers.map { it.contractCanonical }.toSet()
-        val declaredHereNoProviders = contracts
-            .filter { canonical -> canonical !in contractsWithProviders }
-            .toSet()
-
         roundEnv.rootElements
             .filterIsInstance<TypeElement>()
-            .filter { it.kind == ElementKind.CLASS }
             .forEach { clazz ->
+                // Only check concrete classes; skip interfaces and abstract
+                if (clazz.kind != ElementKind.CLASS) return@forEach
+                if (clazz.modifiers.contains(javax.lang.model.element.Modifier.ABSTRACT)) return@forEach
+
+                // Skip common Kotlin synthetic helper classes, but DO NOT skip nested user classes
+                val simple = clazz.simpleName.toString()
+                if (simple == "DefaultImpls") return@forEach
+
+                val implementsContract = contractTypeMirrors.any { ct ->
+                    processingEnv.typeUtils.isAssignable(clazz.asType(), ct)
+                }
+                if (!implementsContract) return@forEach
+
                 val hasServiceProvider = clazz.annotationMirrors.any {
                     (it.annotationType.asElement() as TypeElement).qualifiedName.toString() ==
                             ServiceProvider::class.java.canonicalName
                 }
+                if (!hasServiceProvider) {
+                    // Find the contract name for the message
+                    val contractName = contractTypes.first {
+                        processingEnv.typeUtils.isAssignable(clazz.asType(), it.asType())
+                    }.qualifiedName.toString()
 
-                // Only consider classes that explicitly declare one of our contracts in 'implements'
-                val implementsContractDirectly = clazz.interfaces.any { tm ->
-                    contractTypeMirrors.any { ct ->
-                        processingEnv.typeUtils.isSameType(tm, ct)
-                    }
+                    processingEnv.messager.printMessage(
+                        Diagnostic.Kind.ERROR,
+                        missingServiceProviderErrorMessage(contractName)
+                    )
                 }
-                if (!implementsContractDirectly || hasServiceProvider) return@forEach
-
-                // Identify the specific contract name for the message
-                val contractName = contractTypes.first {
-                    clazz.interfaces.any { im ->
-                        processingEnv.typeUtils.isSameType(im, it.asType())
-                    }
-                }.qualifiedName.toString()
-
-                // Do not error for contracts declared in this module that currently have no providers
-                if (contractName in declaredHereNoProviders) return@forEach
-
-                processingEnv.messager.printMessage(
-                    Diagnostic.Kind.ERROR,
-                    missingServiceProviderErrorMessage(contractName)
-                )
             }
     }
 
