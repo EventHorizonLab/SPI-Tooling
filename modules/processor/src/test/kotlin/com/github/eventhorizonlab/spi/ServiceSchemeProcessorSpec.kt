@@ -549,6 +549,67 @@ class ServiceSchemeProcessorSpec :
                     contractFqcn = listOf("my.api.Api"),
                     expectedImpls = listOf("my.impl.Impl"),
                 ),
+                ServiceCase(
+                    "no-arg provider infers single contract",
+                    api =
+                        listOf(
+                            SourceFile.kotlin(
+                                "Api.kt",
+                                """
+                                package my.api
+                                import com.github.eventhorizonlab.spi.ServiceContract
+                                @ServiceContract
+                                interface Api
+                                """.trimIndent(),
+                            ),
+                        ),
+                    impls =
+                        listOf(
+                            SourceFile.kotlin(
+                                "Impl.kt",
+                                """
+                                package my.impl
+                                import my.api.Api
+                                import com.github.eventhorizonlab.spi.ServiceProvider
+                                @ServiceProvider
+                                class Impl : Api
+                                """.trimIndent(),
+                            ),
+                        ),
+                    contractFqcn = listOf("my.api.Api"),
+                    expectedImpls = listOf("my.impl.Impl"),
+                ),
+                ServiceCase(
+                    "no-arg provider infers inherited contract",
+                    api =
+                        listOf(
+                            SourceFile.kotlin(
+                                "Apis.kt",
+                                """
+                                package my.api
+                                import com.github.eventhorizonlab.spi.ServiceContract
+                                @ServiceContract
+                                interface Api
+                                interface SubApi : Api
+                                """.trimIndent(),
+                            ),
+                        ),
+                    impls =
+                        listOf(
+                            SourceFile.kotlin(
+                                "Impl.kt",
+                                """
+                                package my.impl
+                                import my.api.SubApi
+                                import com.github.eventhorizonlab.spi.ServiceProvider
+                                @ServiceProvider
+                                class Impl : SubApi
+                                """.trimIndent(),
+                            ),
+                        ),
+                    contractFqcn = listOf("my.api.Api"),
+                    expectedImpls = listOf("my.impl.Impl"),
+                ),
             ) { case ->
                 val apiResult = compileApi(*case.api.toTypedArray())
                 apiResult.exitCode shouldBe KotlinCompilation.ExitCode.OK
@@ -787,6 +848,22 @@ class ServiceSchemeProcessorSpec :
                         ),
                     ),
                     "@ServiceProvider target my.api.NotAContract is not annotated with @ServiceContract",
+                ),
+                ErrorCase(
+                    "no-arg provider without contract interfaces",
+                    listOf(
+                        SourceFile.kotlin(
+                            "Impl.kt",
+                            """
+                            package my.impl
+                            import com.github.eventhorizonlab.spi.ServiceProvider
+                            @ServiceProvider
+                            class Impl
+                            """.trimIndent(),
+                        ),
+                    ),
+                    "No @ServiceContract interfaces could be inferred for @ServiceProvider on my.impl.Impl. " +
+                        "Specify explicit value(s).",
                 ),
             ) { case ->
                 val result = compile(case.sources)

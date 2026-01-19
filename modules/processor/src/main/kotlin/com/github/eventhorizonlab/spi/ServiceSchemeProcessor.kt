@@ -46,6 +46,7 @@ class ServiceSchemeProcessor : AbstractProcessor() {
 
         // 2) Collect providers
         roundEnv.getElementsAnnotatedWith(ServiceProvider::class.java).forEach { element ->
+            val providerElement = element as TypeElement
             val spMirrors = collectServiceProviderMirrors(element, processingEnv)
             spMirrors.forEach { spMirror ->
                 val valuesWithDefaults = processingEnv.elementUtils.getElementValuesWithDefaults(spMirror)
@@ -55,9 +56,24 @@ class ServiceSchemeProcessor : AbstractProcessor() {
                         ?.value
                         ?: error("@ServiceProvider missing 'value' on ${element.simpleName}")
                 val typeMirrors = classArrayAnnotationValues(valueAv, processingEnv)
-                typeMirrors.forEach { tm ->
-                    val contractElement = (tm as DeclaredType).asElement() as TypeElement
-                    addProvider(element as TypeElement, contractElement)
+                if (typeMirrors.isEmpty()) {
+                    val inferredContracts = inferContractsFromProvider(providerElement)
+                    if (inferredContracts.isEmpty()) {
+                        processingEnv.messager.printMessage(
+                            Diagnostic.Kind.ERROR,
+                            "No @ServiceContract interfaces could be inferred for @ServiceProvider on " +
+                                "${providerElement.qualifiedName}. Specify explicit value(s).",
+                        )
+                    } else {
+                        inferredContracts.forEach { contractElement ->
+                            addProvider(providerElement, contractElement)
+                        }
+                    }
+                } else {
+                    typeMirrors.forEach { tm ->
+                        val contractElement = (tm as DeclaredType).asElement() as TypeElement
+                        addProvider(providerElement, contractElement)
+                    }
                 }
             }
         }
@@ -236,6 +252,38 @@ class ServiceSchemeProcessor : AbstractProcessor() {
             is String -> processingEnv.elementUtils.getTypeElement(raw)?.asType()
             else -> null
         }
+
+    private fun inferContractsFromProvider(providerElement: TypeElement): List<TypeElement> {
+        val serviceContractName = ServiceContract::class.java.canonicalName
+        val typeUtils = processingEnv.typeUtils
+        val queue = ArrayDeque<TypeMirror>()
+        val seen = mutableSetOf<String>()
+        val contracts = mutableListOf<TypeElement>()
+
+        queue.add(providerElement.asType())
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            val currentKey = typeUtils.erasure(current).toString()
+            if (!seen.add(currentKey)) {
+                continue
+            }
+            val declared = current as? DeclaredType ?: continue
+            val element = declared.asElement() as? TypeElement ?: continue
+            if (element.kind == ElementKind.INTERFACE) {
+                val hasAnnotation =
+                    element.annotationMirrors.any { mirror ->
+                        val annType = (mirror.annotationType.asElement() as TypeElement).qualifiedName.toString()
+                        annType == serviceContractName
+                    }
+                if (hasAnnotation) {
+                    contracts += element
+                }
+            }
+            typeUtils.directSupertypes(current).forEach { queue.add(it) }
+        }
+
+        return contracts.distinctBy { it.qualifiedName.toString() }
+    }
 
     /**
      * Converts the "value" of a class[] annotation member into a List<TypeMirror>,
