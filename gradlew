@@ -116,6 +116,34 @@ esac
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
+# Prefer a compatible Java runtime if JAVA_HOME is not set or points to
+# an unsupported version for this Gradle release.
+if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+    java_major=$("$JAVA_HOME/bin/java" -version 2>&1 | awk -F[\".] '/version/ {print $2}')
+    case "$java_major" in
+        ''|*[!0-9]*)
+            java_major=
+            ;;
+    esac
+    if [ -n "$java_major" ] && [ "$java_major" -ge 24 ]; then
+        JAVA_HOME=
+    fi
+fi
+
+if [ -z "$JAVA_HOME" ]; then
+    for candidate in \
+        "$HOME/.local/share/mise/installs/java/21.0.2" \
+        "$HOME/.local/share/mise/installs/java/21.0" \
+        "$HOME/.local/share/mise/installs/java/21"
+    do
+        if [ -x "$candidate/bin/java" ]; then
+            JAVA_HOME=$candidate
+            export JAVA_HOME
+            break
+        fi
+    done
+fi
+
 
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
