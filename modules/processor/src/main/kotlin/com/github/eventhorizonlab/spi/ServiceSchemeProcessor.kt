@@ -98,27 +98,33 @@ class ServiceSchemeProcessor : AbstractProcessor() {
 
         roundEnv.rootElements
             .filterIsInstance<TypeElement>()
-            .filter { it.kind == ElementKind.CLASS }
             .forEach { clazz ->
-                val implementsContract =
-                    contractTypeMirrors.any { ct ->
-                        processingEnv.typeUtils.isAssignable(clazz.asType(), ct)
-                    }
-                val hasServiceProvider =
-                    clazz.annotationMirrors.any {
-                        (it.annotationType.asElement() as TypeElement).qualifiedName.toString() ==
+                // Only check concrete classes; skip interfaces and abstract
+                if (clazz.kind != ElementKind.CLASS) return@forEach
+                if (clazz.modifiers.contains(javax.lang.model.element.Modifier.ABSTRACT)) return@forEach
+
+                // Skip common Kotlin synthetic helper classes, but DO NOT skip nested user classes
+                val simple = clazz.simpleName.toString()
+                if (simple == "DefaultImpls") return@forEach
+
+                val implementsContract = contractTypeMirrors.any { ct ->
+                    processingEnv.typeUtils.isAssignable(clazz.asType(), ct)
+                }
+                if (!implementsContract) return@forEach
+
+                val hasServiceProvider = clazz.annotationMirrors.any {
+                    (it.annotationType.asElement() as TypeElement).qualifiedName.toString() ==
                             ServiceProvider::class.java.canonicalName
-                    }
-                if (implementsContract && !hasServiceProvider) {
-                    val contractName =
-                        contractTypes
-                            .first {
-                                processingEnv.typeUtils.isAssignable(clazz.asType(), it.asType())
-                            }.qualifiedName
-                            .toString()
+                }
+                if (!hasServiceProvider) {
+                    // Find the contract name for the message
+                    val contractName = contractTypes.first {
+                        processingEnv.typeUtils.isAssignable(clazz.asType(), it.asType())
+                    }.qualifiedName.toString()
+
                     processingEnv.messager.printMessage(
                         Diagnostic.Kind.ERROR,
-                        missingServiceProviderErrorMessage(contractName),
+                        missingServiceProviderErrorMessage(contractName)
                     )
                 }
             }
