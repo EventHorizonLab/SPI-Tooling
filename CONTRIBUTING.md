@@ -108,4 +108,4 @@ Releases are automated via GitHub Actions and occur when a push or merge is made
 ## Tips for Contributors
 - Keep changes focused - small, atomic PRs are easier to review
 - If you're unsure about an approach, open a Draft PR early for feedback
-- Think about future maintainers - clear code, clear cods, clear tests
+- Think about future maintainers - clear code, clear code, clear tests
