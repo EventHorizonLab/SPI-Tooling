@@ -182,3 +182,7 @@ Manual SPI file management is:
 - Hard to maintain in multi-module setups
 - A barrier for new contributors
 `spi-tooling` makes it automatic, safe, and reproducible -- so you can focus on building features, not maintaing service files.
+
+## README and CONTRIBUTING documentation links
+
+- Use issue-title evidence because the blocker reason was generic. Keep the change docs-only and limited to README.md / CONTRIBUTING.md.
