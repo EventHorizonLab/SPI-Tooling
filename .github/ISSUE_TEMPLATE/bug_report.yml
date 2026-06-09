@@ -21,7 +21,7 @@ body:
   - type: input
     attributes:
       label: Environment
-      placeholder: "Paper 1.20.6, Kotlin 1.9.0"
+      placeholder: "JDK 21, Kotlin 2.0.0, Gradle 8.8, OS: Windows 11"
   - type: textarea
     attributes:
       label: Logs / Stacktrace
