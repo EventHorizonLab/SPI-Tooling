@@ -33,26 +33,26 @@ This is designed for:
 Groovy DSL:
 ```groovy
 dependencies {
-    implementation "com.github.eventhorizonlab:spi-tooling-annotations:<version>"
+    implementation "io.github.eventhorizonlab:spi-tooling-annotations:<version>"
     
     // --- BELOW ONLY REQUIRED FOR PROJECTS USING @ServiceProvider ---
     // Kotlin projects:
-    kapt "com.github.eventhorizonlab:spi-tooling-processor:<version>"
+    kapt "io.github.eventhorizonlab:spi-tooling-processor:<version>"
     
     // Java projects:
-    annotationProcessor("com.github.eventhorizonlab:spi-tooling:<version>")
+    annotationProcessor("io.github.eventhorizonlab:spi-tooling-processor:<version>")
 }
 ```
 Gradle kts:
 ```kotlin
 dependencies {
-    implementation("com.github.eventhorizonlab:spi-tooling-annotations:<version>")
+    implementation("io.github.eventhorizonlab:spi-tooling-annotations:<version>")
     
     // --- BELOW ONLY REQUIRED FOR PROJECTS USING @ServiceProvider ---
     // Kotlin projects:
-    kapt("com.github.eventhorizonlab:spi-tooling-processor:<version>")
+    kapt("io.github.eventhorizonlab:spi-tooling-processor:<version>")
     // Java projects:
-    annotationProcessor("com.github.eventhorizonlab:spi-tooling-processor:<version>")
+    annotationProcessor("io.github.eventhorizonlab:spi-tooling-processor:<version>")
 }
 ```
 ➡️ See [Kapt](https://kotlinlang.org/docs/kapt.html#0) for more information
