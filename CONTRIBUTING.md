@@ -1,6 +1,6 @@
 # Contributing to SPI-Tooling
 
-Firstly, thank you for taking the time contribute!
+Firstly, thank you for taking the time to contribute!
 SPI-Tooling exists to make service loading easier, and your ideas, fixes and improvements help make that possible.
 
 This guide will walk you through how to set up your environment, make changes, and submit them in a way that keeps the project reproducible and contributor-friendly.
@@ -108,4 +108,4 @@ Releases are automated via GitHub Actions and occur when a push or merge is made
 ## Tips for Contributors
 - Keep changes focused - small, atomic PRs are easier to review
 - If you're unsure about an approach, open a Draft PR early for feedback
-- Think about future maintainers - clear code, clear cods, clear tests
+- Think about future maintainers - clear code, clear docs, clear tests
