@@ -4,7 +4,7 @@
 [![Annotations Maven Central](https://img.shields.io/maven-central/v/io.github.eventhorizonlab/spi-tooling-annotations?color=blue)](https://central.sonatype.com/artifact/io.github.eventhorizonlab/spi-tooling-annotations)
 [![Processor Maven Central](https://img.shields.io/maven-central/v/io.github.eventhorizonlab/spi-tooling-processor?color=blue)](https://central.sonatype.com/artifact/io.github.eventhorizonlab/spi-tooling-processor) 
 [![Build](https://github.com/EventHorizonLab/SPI-Tooling/actions/workflows/release-and-publish.yml/badge.svg)](https://github.com/EventHorizonLab/SPI-Tooling/actions)  
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 
 ---
 ## 📖 Overview
@@ -18,7 +18,7 @@ This is designed for:
 
 ---
 ## ✨ Features
-- **Annotation‑driven**: Mark your contracts with `@ServiceContract` and service implementations with `@ServiceProvider(Contract:class)`
+- **Annotation‑driven**: Mark your contracts with `@ServiceContract` and service implementations with `@ServiceProvider(Contract::class)`
 - **Automatic `META-INF/services` generation** at compile time.
 - **Multi‑module aware**: Handles aggregation across modules without collisions.
 - **Deterministic output**: Stable ordering for reproducible builds.
@@ -181,4 +181,4 @@ Manual SPI file management is:
 - Error-prone (typos, missing entries)
 - Hard to maintain in multi-module setups
 - A barrier for new contributors
-`spi-tooling` makes it automatic, safe, and reproducible -- so you can focus on building features, not maintaing service files.
+`spi-tooling` makes it automatic, safe, and reproducible -- so you can focus on building features, not maintaining service files.
